@@ -35,8 +35,14 @@ enum Commands {
         #[arg(short, long)]
         check_keys_match: bool,
     },
-    SecondTool {
-        // second tool specific arguments
+    GetConsensus {
+        /// Path to the input MSA FASA file
+        #[arg(short = 'i', long)]
+        input_msa: PathBuf,
+
+        /// Path to the consensus sequence as a FASTA file
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
     },
     ThirdTool {
         // third tool specific arguments
@@ -50,8 +56,8 @@ fn main() -> Result<()>{
         Commands::ReverseTranslate { aa_filepath, nt_filepath, name_mapping, output_file_path, check_keys_match} => {
             tools::reverse_translate::run(aa_filepath, nt_filepath, name_mapping, output_file_path, *check_keys_match)?
         },
-        Commands::SecondTool { /* args */ } => {
-            // Call second tool's implementation
+        Commands::GetConsensus { input_msa, output_file } => {
+            tools::get_consensus::run(input_msa, output_file)?
         },
         Commands::ThirdTool { /* args */ } => {
             // Call third tool's implementation
