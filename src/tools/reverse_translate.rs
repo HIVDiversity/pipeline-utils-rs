@@ -10,6 +10,7 @@ use anyhow::{Error, Result, Context, anyhow};
 use colored::Colorize;
 
 type FastaRecords = HashMap<String, Vec<u8>>;
+const VERSION: &str = "0.2.1";
 
 
 fn load_fasta(file_path: &PathBuf, sequence_store: &mut FastaRecords) {
