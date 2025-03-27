@@ -62,7 +62,14 @@ fn build_consensus(msa: &DMatrix<u8>) -> Result<Vec<u8>>{
     Ok(consensus)
 }
 
-pub fn run(input_seqs_aligned: &PathBuf, output_path: &PathBuf) -> Result<()>{
+fn write_consensus(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<()>{
+    let mut writer = fasta::Writer::to_file(output_file)?;
+    writer.write(seq_name, None, seq)?;
+
+    Ok(())
+}
+
+pub fn run(input_seqs_aligned: &PathBuf, output_path: &PathBuf, consensus_name: &String) -> Result<()>{
     simple_logger::SimpleLogger::new().env().init()?;
     log::info!("{}" ,format!("This is get-consensus version {}", VERSION).bold().bright_green());
 
@@ -70,17 +77,15 @@ pub fn run(input_seqs_aligned: &PathBuf, output_path: &PathBuf) -> Result<()>{
     let seqs = read_fasta(input_seqs_aligned)?;
     log::info!("Successfully read {} sequences into memory.", seqs.len());
 
-    log::info!("Converting sequences into a matrix.");
     let seq_matrix = sequences_to_matrix(&seqs)?;
     log::info!("Successfully created a {} by {} matrix of sequences.", seq_matrix.nrows(), seq_matrix.ncols());
 
     log::info!("Generating consensus.");
     let consensus = build_consensus(&seq_matrix)?;
 
-    let cons_string = String::from_utf8(consensus).with_context(||"Consensus vector is not a valid UTF-8 string.")?;
-    log::info!("Done. Consensus:\n{cons_string}");
 
+    log::info!("Writing consensus to {:?}", output_path);
+    write_consensus(output_path, consensus_name, &consensus)?;
 
     Ok(())
-
 }
