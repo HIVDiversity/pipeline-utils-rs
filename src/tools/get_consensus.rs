@@ -11,7 +11,7 @@ use bio::io::fasta::Record;
 use colored::Colorize;
 use nalgebra::DMatrix;
 
-fn read_fasta(fasta_file: &PathBuf) -> Result<()>{
+fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
     let mut reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
     let mut seqs: Vec<Vec<u8>> = Vec::new();
 
@@ -20,17 +20,38 @@ fn read_fasta(fasta_file: &PathBuf) -> Result<()>{
         seqs.push(record.seq().to_vec());
     }
 
-    for seq in seqs {
-        for a in seq {
-            print!("{}", a)
-        }
-        println!()
-    }
-
-    Ok(())
+    Ok(seqs)
 
 }
 
+fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
+    // Check if sequences are empty
+    if sequences.is_empty() {
+        return Err(anyhow!("There are no sequences in the sequence vector passed to the sequence_to_matrix function."));
+    }
+
+    // Check that all sequences are the same length (this is an MSA)
+    let mut count = 0;
+    for seq in sequences{
+        count = count+1;
+        if seq.len() != sequences[0].len(){
+            return Err(anyhow!("Not all sequences in the MSA have the same length. The length of the 1st seq is {} and the length of the {} seq is {}",
+            sequences[0].len(), count, seq.len()))
+        }
+
+    }
+
+    Ok(
+        DMatrix::from_row_slice(sequences.len(), sequences[0].len(), &sequences.concat())
+    )
+}
+
 pub fn run(input_seqs_aligned: &PathBuf, output_path: &PathBuf) -> Result<()>{
-    read_fasta(input_seqs_aligned)
+    let seqs = read_fasta(input_seqs_aligned)?;
+    let seq_matrix = sequences_to_matrix(&seqs);
+
+    println!("{:?}", seq_matrix);
+
+    Ok(())
+
 }
