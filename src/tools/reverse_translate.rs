@@ -3,10 +3,8 @@ use std::fs::File;
 use std::path::{PathBuf};
 use std::process::exit;
 use bio::io::fasta;
-use clap::Parser;
 use log::{info, warn};
-use serde::{Deserialize, Serialize};
-use anyhow::{Error, Result, Context, anyhow};
+use anyhow::{Result, Context, anyhow};
 use colored::Colorize;
 
 type FastaRecords = HashMap<String, Vec<u8>>;

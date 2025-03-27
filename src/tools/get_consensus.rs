@@ -1,19 +1,13 @@
-use std::ascii::AsciiExt;
 use std::collections::HashMap;
-use std::fs::File;
 use std::path::{PathBuf};
-use std::process::exit;
 use bio::io::fasta;
-use clap::Parser;
-use log::{info, warn};
-use serde::{Deserialize, Serialize};
-use anyhow::{Error, Result, Context, anyhow};
-use bio::io::fasta::Record;
-use colored::Colorize;
+use anyhow::{Result, Context, anyhow};
 use nalgebra::DMatrix;
+use colored::Colorize;
+const VERSION: &str = "0.1.0";
 
 fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
-    let mut reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
+    let reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
     let mut seqs: Vec<Vec<u8>> = Vec::new();
 
     for result in reader.records() {
@@ -69,11 +63,23 @@ fn build_consensus(msa: &DMatrix<u8>) -> Result<Vec<u8>>{
 }
 
 pub fn run(input_seqs_aligned: &PathBuf, output_path: &PathBuf) -> Result<()>{
+    simple_logger::SimpleLogger::new().env().init()?;
+    log::info!("{}" ,format!("This is get-consensus version {}", VERSION).bold().bright_green());
+
+    log::info!("Reading input FASTA file: {:?}", input_seqs_aligned);
     let seqs = read_fasta(input_seqs_aligned)?;
+    log::info!("Successfully read {} sequences into memory.", seqs.len());
+
+    log::info!("Converting sequences into a matrix.");
     let seq_matrix = sequences_to_matrix(&seqs)?;
+    log::info!("Successfully created a {} by {} matrix of sequences.", seq_matrix.nrows(), seq_matrix.ncols());
+
+    log::info!("Generating consensus.");
     let consensus = build_consensus(&seq_matrix)?;
 
-    println!("{:?}", String::from_utf8(consensus)?);
+    let cons_string = String::from_utf8(consensus).with_context(||"Consensus vector is not a valid UTF-8 string.")?;
+    log::info!("Done. Consensus:\n{cons_string}");
+
 
     Ok(())
 
