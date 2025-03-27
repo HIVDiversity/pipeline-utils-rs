@@ -1,3 +1,4 @@
+use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{PathBuf};
@@ -46,11 +47,33 @@ fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     )
 }
 
+fn build_consensus(msa: &DMatrix<u8>) -> Result<Vec<u8>>{
+    let mut consensus: Vec<u8> = Vec::new();
+
+    for col in msa.column_iter(){
+        let mut col_count = HashMap::new();
+
+        for item in col{
+            *col_count.entry(item).or_insert(0) += 1;
+        }
+
+        let largest_item = col_count
+            .iter()
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .map(|(k,    _v)| k).ok_or(anyhow!("Could not get the most frequent element in this column."))?;
+
+        consensus.push(largest_item.to_owned().to_owned());
+
+    }
+    Ok(consensus)
+}
+
 pub fn run(input_seqs_aligned: &PathBuf, output_path: &PathBuf) -> Result<()>{
     let seqs = read_fasta(input_seqs_aligned)?;
-    let seq_matrix = sequences_to_matrix(&seqs);
+    let seq_matrix = sequences_to_matrix(&seqs)?;
+    let consensus = build_consensus(&seq_matrix)?;
 
-    println!("{:?}", seq_matrix);
+    println!("{:?}", String::from_utf8(consensus)?);
 
     Ok(())
 
