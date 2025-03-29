@@ -3,11 +3,13 @@ use std::iter::Iterator;
 use std::path::{PathBuf};
 use bio::io::fasta;
 use anyhow::{Result, Context, anyhow};
+use bio::alignment::Alignment;
 use nalgebra::DMatrix;
 use colored::Colorize;
 use bio::alignment::pairwise::*;
 use bio::alignment::AlignmentOperation::*;
 use bio::scores::blosum62;
+use log::log;
 
 const VERSION: &str = "0.1.0";
 
@@ -21,7 +23,7 @@ fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool, codon_ta
     if strip_gaps{
         new_seq = new_seq.iter().copied().filter(|character| *character != GAP_CHAR).collect();
     }
-    println!("{:?}",new_seq.len());
+
     let mut amino_acids = Vec::with_capacity(new_seq.len()/3);
     for codon in new_seq.chunks(3) {
 
@@ -29,7 +31,7 @@ fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool, codon_ta
         // check anything else.
 
         if codon.len() != 3 {
-            log::warn!("The codon {:?} had a length of {} so we're adding a {}", String::from_utf8(codon.to_vec()), codon.len(), UNKNOWN_AA_CHAR);
+            log::warn!("The codon {:?} had a length of {} so we're adding a {}", String::from_utf8(codon.to_vec())?, codon.len(), UNKNOWN_AA_CHAR);
             amino_acids.push(FRAMESHIFT_CHAR);
         } else {
             let nt_triplet: [u8; 3] = codon.try_into().expect("The codon should always be a triplet vector since we've checked for it.");
@@ -43,17 +45,25 @@ fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool, codon_ta
     }
 
 
-    // let amino_acids: Vec<u8> = new_seq
-    //     .chunks(3)
-    //     .map(|codon| codon_table.get::<[u8; 3]>(codon.try_into().unwrap()).unwrap()[0])
-    //     .collect();
-    //
-    // println!("{:?}", String::from_utf8(amino_acids.to_vec()))
-
     Ok(amino_acids)
 }
 
-pub fn run() -> Result<()>{
+// TODO: Move readfasta to the utils crate
+fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
+    let reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
+    let mut seqs: Vec<Vec<u8>> = Vec::new();
+
+    for result in reader.records() {
+        let record = result.expect("This record is invalid and failed to parse.");
+        seqs.push(record.seq().to_vec());
+    }
+
+    Ok(seqs)
+
+}
+
+pub fn run(reference_file: &PathBuf, query_file: &PathBuf, output_file: &PathBuf, output_seq_name: &str, strip_gaps: bool) -> Result<()>{
+    simple_logger::SimpleLogger::new().env().init()?;
     let codon_table: HashMap<&[u8; 3], &[u8; 1]> = HashMap::from([
         (b"TTT", b"F"),
         (b"TTC", b"F"),
@@ -119,29 +129,39 @@ pub fn run() -> Result<()>{
         (b"TAA", b"*"),
         (b"TAG", b"*"),
         (b"TGA", b"*")]);
-    let reference = b"ATGAGAGTGAAGGAGAAATATCAGCACTTGTGGAGATGGGGGTGGAGATGGGGCACCATGCTCCTTGGGATGTTGATGATCTGTAGTGCTACAGAAAAATTGTGGGTCACAGTCTATTATGGGGTACCTGTGTGGAAGGAAGCAACCACCACTCTATTTTGTGCATCAGATGCTAAAGCATATGATACAGAGGTACATAATGTTTGGGCCACACATGCCTGTGTACCCACAGACCCCAACCCACAAGAAGTAGTATTGGTAAATGTGACAGAAAATTTTAACATGTGGAAAAATGACATGGTAGAACAGATGCATGAGGATATAATCAGTTTATGGGATCAAAGCCTAAAGCCATGTGTAAAATTAACCCCACTCTGTGTTAGTTTAAAGTGCACTGATTTGAAGAATGATACTAATACCAATAGTAGTAGCGGGAGAATGATAATGGAGAAAGGAGAGATAAAAAACTGCTCTTTCAATATCAGCACAAGCATAAGAGGTAAGGTGCAGAAAGAATATGCATTTTTTTATAAACTTGATATAATACCAATAGATAATGATACTACCAGCTATAAGTTGACAAGTTGTAACACCTCAGTCATTACACAGGCCTGTCCAAAGGTATCCTTTGAGCCAATTCCCATACATTATTGTGCCCCGGCTGGTTTTGCGATTCTAAAATGTAATAATAAGACGTTCAATGGAACAGGACCATGTACAAATGTCAGCACAGTACAATGTACACATGGAATTAGGCCAGTAGTATCAACTCAACTGCTGTTAAATGGCAGTCTAGCAGAAGAAGAGGTAGTAATTAGATCTGTCAATTTCACGGACAATGCTAAAACCATAATAGTACAGCTGAACACATCTGTAGAAATTAATTGTACAAGACCCAACAACAATACAAGAAAAAGAATCCGTATCCAGAGAGGACCAGGGAGAGCATTTGTTACAATAGGAAAAATAGGAAATATGAGACAAGCACATTGTAACATTAGTAGAGCAAAATGGAATAACACTTTAAAACAGATAGCTAGCAAATTAAGAGAACAATTTGGAAATAATAAAACAATAATCTTTAAGCAATCCTCAGGAGGGGACCCAGAAATTGTAACGCACAGTTTTAATTGTGGAGGGGAATTTTTCTACTGTAATTCAACACAACTGTTTAATAGTACTTGGTTTAATAGTACTTGGAGTACTGAAGGGTCAAATAACACTGAAGGAAGTGACACAATCACCCTCCCATGCAGAATAAAACAAATTATAAACATGTGGCAGAAAGTAGGAAAAGCAATGTATGCCCCTCCCATCAGTGGACAAATTAGATGTTCATCAAATATTACAGGGCTGCTATTAACAAGAGATGGTGGTAATAGCAACAATGAGTCCGAGATCTTCAGACCTGGAGGAGGAGATATGAGGGACAATTGGAGAAGTGAATTATATAAATATAAAGTAGTAAAAATTGAACCATTAGGAGTAGCACCCACCAAGGCAAAGAGAAGAGTGGTGCAGAGAGAAAAAAGAGCAGTGGGAATAGGAGCTTTGTTCCTTGGGTTCTTGGGAGCAGCAGGAAGCACTATGGGCGCAGCCTCAATGACGCTGACGGTACAGGCCAGACAATTATTGTCTGGTATAGTGCAGCAGCAGAACAATTTGCTGAGGGCTATTGAGGCGCAACAGCATCTGTTGCAACTCACAGTCTGGGGCATCAAGCAGCTCCAGGCAAGAATCCTGGCTGTGGAAAGATACCTAAAGGATCAACAGCTCCTGGGGATTTGGGGTTGCTCTGGAAAACTCATTTGCACCACTGCTGTGCCTTGGAATGCTAGTTGGAGTAATAAATCTCTGGAACAGATTTGGAATCACACGACCTGGATGGAGTGGGACAGAGAAATTAACAATTACACAAGCTTAATACACTCCTTAATTGAAGAATCGCAAAACCAGCAAGAAAAGAATGAACAAGAATTATTGGAATTAGATAAATGGGCAAGTTTGTGGAATTGGTTTAACATAACAAATTGGCTGTGGTATATAAAATTATTCATAATGATAGTAGGAGGCTTGGTAGGTTTAAGAATAGTTTTTGCTGTACTTTCTATAGTGAATAGAGTTAGGCAGGGATATTCACCATTATCGTTTCAGACCCACCTCCCAACCCCGAGGGGACCCGACAGGCCCGAAGGAATAGAAGAAGAAGGTGGAGAGAGAGACAGAGACAGATCCATTCGATTAGTGAACGGATCCTTGGCACTTATCTGGGACGATCTGCGGAGCCTGTGCCTCTTCAGCTACCACCGCTTGAGAGACTTACTCTTGATTGTAACGAGGATTGTGGAACTTCTGGGACGCAGGGGGTGGGAAGCCCTCAAATATTGGTGGAATCTCCTACAGTATTGGAGTCAGGAACTAAAGAATAGTGCTGTTAGCTTGCTCAATGCCACAGCCATAGCAGTAGCTGAGGGGACAGATAGGGTTATAGAAGTAGTACAAGGAGCTTGTAGAGCTATTCGCCACATACCTAGAAGAATAAGACAGGGCTTGGAAAGGATTTTGCTATAA";
-    let consensus= b"ATGGCAGGAAGAAGCGGAGACAGCGACGACGCGCTCCTCCTAGCAGTGAGACTCATCAAAATCCTGCATCAAAGCAGTAAGTATATGTAATGCTGAACTTATTAGCAAGAGTAGATTATAGAATAGGAATAGGAGCATTTACAGTAGCATTAATCATAGCAATAGTTGTGTGGATCATAGTATATATAGAATATAGAAAATTGGTAAGACAAAGGAGAATAGATAGGTTAATTAAAAGAATTAGGGAAAGAGCAGAAGACAGTGGCAATGAGAGTGAGGGGGACACTGAGGAATTATCTACCTTGGTGGATATGGGGAATCTTAGGCTTTTGGATAATGAGTTATAATGTGGGGGGAAACTTGTGGGTCACAGTCTATTATGGGGTACCTGTGTGGAGAGAAGCAAAAACTACTCTGTTCTGTGCATCAGATGCTAAAGCATATGACAAAGAAGTGCACAATGTCTGGGCTACACATGCCTGTGTACCCACAGACCCCAACCCACAAAAAATGGTTTTGGGAAATGTAACAGAAAATTTTAACATGTGGAAAAATGACATGGTGGATCAGATGCATGAGGATATAATCAGTTTATGGGATCAAAGTCTAAAGCCATGTGTAAAGTTGACCCCACTCTGTGTCACTTTAAATTGTACTGAGGTAGCTAAGGCTACTGGCAATTTCACGGGAGTAGAAATGAAAAATTGCTCTTTCAATACAACCACAGAATTAAGAGACAGGACACGGAAAGCATATGCACTCTTTTATAGACAGGATATAGTACCACTTGAAGAGAATAAGAATAGCTCTGAGTATATATTAATAAATTGCAATACCTCAACCATAACACAAGCCTGTCCAAAGGTCACCTTTGACCCAATTCCTATACATTATTGTGCTCCAGCTGGTTATGCGATTCTAAAATGTAATAATCAGACATTCAATGGGACAGGACCATGCCTTAATGTTAGTACAGTACAATGTACACATGGGATTAAGCCAGTGGTATCAACTCAACTACTGTTAAATGGTAGCATAGCAGGAAAAGAGATAGTAATTAGATCTGCAAATCTGTCAGACAATGCCAAAACAATAATAGTACATCTTAATGAATCTGTAGAAATTCAGTGTATAAGACCTAACAATAATACAAGGAAAAGTATAAGGATAGGGCCAGGACAAACATTCTATGCAAATAATGACATAATAGGAGACATAAGACAAGCACATTGTAACATTAGTAAAACAAAATGGAATGGAACTTTAGAAAGGGTAAAGGAGAAATTAAAAGTACACTTCCCTAATAAAACAATACAATTTAAACCATCCTCAGGAGGGGACCTAGAAATTACAACACATAGCTTTAATTGTAGAGGAGAATTTTTTTATTGCAATACATCAGGCTTATTTAATAGTAATAGTACATACTTAAATTCAACAAAAAATAATTCAACAGACATCACAATTACACTCCCATGCAGAATAAAACAAATTATAAACATGTGGCAGGGGGTAGGACGAGCAATGTATGCCCCTCCCATTGAAGGAAACATAACATGTACCTCAAGTATCACAGGACTACTATTGACACGGGATGGAGGTAAGAACAACACAGAAAATAATACAGAGATATTCAGGCCTGGAGGAGGAAATATGAAGGACAATTGGAGAAGTGAATTATATAAATATAAAGTGGTAGAAATTAAACCATTAGGAATAGCACCCACTAAAGCAAAAAGGAGAGTGGTGGAGAGAGAAAAAAGAGCAGTGGGAATAGGAGCTGTGTTCCTTGGGTTCTTGGGAGCAGCAGGAAGCACTATGGGCGCGGCGTCAATAACGCTGACGGTACAGGCCAGACAACTGTTGTCTGGTATAGTGCAACAGCAAAGCAATTTGCTGAGAGCTATAGAGGCGCAACAGCATATGTTGCAACTCACGGTCTGGGGCATTAAGCAGCTCCAAGCAAGAGTCCTGGCTATAGAAAGATACCTAAAGGATCAACAGCTCCTAGGAATTTGGGGCTGCTCTGGAAAACTCATCTGCACCACTGCTGTACCTTGGAACTCCAGTTGGAGTAATAAATCTCTAGATGATATTTGGGAAAACATGACCTGGATGCAGTGGGACAAAGAAATTAGTAATTACTCAAACACAATATACAAGTTGCTTGAAGCATCGCAAACCCAGCAGGAGCAAAATGAAAAGGATTTATTAGCATTGGACAAGTGGCAAAATCTGTGGAGTTGGTTTAGCATAACAAATTGGCTATGGTATATAAAAATATTCATAATGATAGTAGGAGGCTTGATAGGTTTAAGAATAATTTTTGCTGTGCTATCTATAGTAAATAGAGTTAGGCAGGGATACTCACCTTTGTCGTTTCAGACCCTTATCCCAGACCCGAGGGGACCCGACAGGCCCGGAGGAATCGAAGAAGAAGGTGGAGAGCAAGACAGAAACAGATCAGTGAGATTAGTGAACGGATTCTTAGCACTTGTCTGGGACGATCTGCGGAGCCTGTGCCTCTTCAGCTACCACCGATTGAGAGACTGCATATTGGGACTGAAACTTCTGGGACAGAGGGGATGGGAAGCCCTTAAGTATCTAGGAAGTCTTGTGCAGTATTGGGGTCTGGAACTAAAAAAGAGTGCCATTAGTCTGCTTGATACCATAGCAATAGTAGTAGCTGAGGGAACAGATAGAATTATAGAATTCATACTAAGAATTTGTAGAGCTATCCACCACATACCTAGAAGAGTAAGACAGGGCTTTGAAGCAGCTTTGCTATAAAATGGGGAACAAGTGGTCAAAAAGCTGGCCTGCTGTAAGGGAAAGATTAAGAAGAACTGTGCCAGCAGCAGAGAGAGTAAGTGCAGCAGAGGGAGTAGGAGCAGCATCTCAAGACTTAGCTAAGCATGGAGCACTTACAACCAGCAACACAGCCCACAATAATGAGGCTTGTGCCTGGCTGCAAGCACAAGAGGAGAATGAAGAAGAAGTA";
+
+    let reference = read_fasta(reference_file)?[0].as_slice();
+    let query = read_fasta(query_file)?[0].as_slice();
+
     let ref_aa = translate(reference, false, false, &codon_table)?;
-    let cons_aa =  translate(consensus,false, false, &codon_table)?;
+    let ref_aa_slice = ref_aa.as_slice();
 
-    // let score = |a: u8, b: u8| if a == b { 1i32 } else { -1i32 };
-
-    let mut aligner = Aligner::with_capacity(cons_aa.len(), ref_aa.len(), -5, -1, bio::scores::blosum62);
-    let alignment = aligner.local(cons_aa.as_slice(), ref_aa.as_slice());
-
-
-    // let codon_table: HashMap<&[u8; 3], &[u8; 1]> = HashMap::from([
-    //     (b"TTT", "F".as_bytes()), ("TTC".as_bytes(), "F".as_bytes()), ("TTA".as_bytes(), "L".as_bytes()), ("TTG".as_bytes(), "L".as_bytes()), ("CTT".as_bytes(), "L".as_bytes()), ("CTC".as_bytes(), "L".as_bytes()), ("CTA".as_bytes(), "L".as_bytes()), ("CTG".as_bytes(), "L".as_bytes()),
-    //     ("ATT".as_bytes(), "I".as_bytes()), ("ATC".as_bytes(), "I".as_bytes()), ("ATA".as_bytes(), "I".as_bytes()), ("ATG".as_bytes(), "M".as_bytes()), ("GTT".as_bytes(), "V".as_bytes()), ("GTC".as_bytes(), "V".as_bytes()), ("GTA".as_bytes(), "V".as_bytes()), ("GTG".as_bytes(), "V".as_bytes()),
-    //     ("TCT".as_bytes(), "S".as_bytes()), ("TCC".as_bytes(), "S".as_bytes()), ("TCA".as_bytes(), "S".as_bytes()), ("TCG".as_bytes(), "S".as_bytes()), ("CCT".as_bytes(), "P".as_bytes()), ("CCC".as_bytes(), "P".as_bytes()), ("CCA".as_bytes(), "P".as_bytes()), ("CCG".as_bytes(), "P".as_bytes()),
-    //     ("ACT".as_bytes(), "T".as_bytes()), ("ACC".as_bytes(), "T".as_bytes()), ("ACA".as_bytes(), "T".as_bytes()), ("ACG".as_bytes(), "T".as_bytes()), ("GCT".as_bytes(), "A".as_bytes()), ("GCC".as_bytes(), "A".as_bytes()), ("GCA".as_bytes(), "A".as_bytes()), ("GCG".as_bytes(), "A".as_bytes()),
-    //     ("TAT".as_bytes(), "Y".as_bytes()), ("TAC".as_bytes(), "Y".as_bytes()), ("CAT".as_bytes(), "H".as_bytes()), ("CAC".as_bytes(), "H".as_bytes()), ("CAA".as_bytes(), "Q".as_bytes()), ("CAG".as_bytes(), "Q".as_bytes()),
-    //     ("AAT".as_bytes(), "N".as_bytes()), ("AAC".as_bytes(), "N".as_bytes()), ("AAA".as_bytes(), "K".as_bytes()), ("AAG".as_bytes(), "K".as_bytes()), ("GAT".as_bytes(), "D".as_bytes()), ("GAC".as_bytes(), "D".as_bytes()), ("GAA".as_bytes(), "E".as_bytes()), ("GAG".as_bytes(), "E".as_bytes()),
-    //     ("TGT".as_bytes(), "C".as_bytes()), ("TGC".as_bytes(), "C".as_bytes()), ("TGG".as_bytes(), "W".as_bytes()), ("CGT".as_bytes(), "R".as_bytes()), ("CGC".as_bytes(), "R".as_bytes()), ("CGA".as_bytes(), "R".as_bytes()), ("CGG".as_bytes(), "R".as_bytes()),
-    //     ("AGT".as_bytes(), "S".as_bytes()), ("AGC".as_bytes(), "S".as_bytes()), ("AGA".as_bytes(), "R".as_bytes()), ("AGG".as_bytes(), "R".as_bytes()), ("GGT".as_bytes(), "G".as_bytes()), ("GGC".as_bytes(), "G".as_bytes()), ("GGA".as_bytes(), "G".as_bytes()), ("GGG".as_bytes(), "G".as_bytes())]);
+    let mut aligner = Aligner::with_capacity(query.len()/3, ref_aa.len(), -5, -1, bio::scores::blosum62);
+    let mut best_score = 0;
+    let mut best_frame = 0;
+    let mut best_translation: Vec<u8> = Vec::with_capacity(query.len()/3);
+    let mut best_alignment: Alignment;
 
 
-    println!("{}", alignment.pretty(cons_aa.as_slice(), ref_aa.as_slice(), 160));
+    for frame in 0..3{
+        log::info!("Translating consensus in frame {:?}", frame+1);
+        let cons_aa = translate(&query[frame..], true, true, &codon_table)?;
+        let alignment = aligner.local(cons_aa.as_slice(), ref_aa_slice);
+        log::info!("Alignment with consensus in frame {:?} gave a score of {:?}", frame, alignment.score);
+        if alignment.score > best_score{
+            best_score = alignment.score;
+            best_frame = frame;
+            best_translation = cons_aa[alignment.xstart..alignment.xend].to_vec();
+            best_alignment = alignment;
+        }
+    }
+
+    log::info!("Choosing translation in frame {:?} with score {:?}:\n{:?}", best_frame, best_score, String::from_utf8(best_translation)? );
+
+    //
+    //
+    // println!("{}", alignment.pretty(cons_aa.as_slice(), ref_aa.as_slice(), 160));
+    // println!("{:?}", alignment.score);
 
     Ok(())
 }
