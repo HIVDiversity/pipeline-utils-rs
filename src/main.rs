@@ -48,8 +48,8 @@ enum Commands {
         #[arg(short='n', long)]
         consensus_name: String
     },
-    ThirdTool {
-        // third tool specific arguments
+    AlignConsensus {
+
     }
 }
 
@@ -63,8 +63,8 @@ fn main() -> Result<()>{
         Commands::GetConsensus { input_msa, output_file, consensus_name} => {
             tools::get_consensus::run(input_msa, output_file, consensus_name)?
         },
-        Commands::ThirdTool { /* args */ } => {
-            // Call third tool's implementation
+        Commands::AlignConsensus { } => {
+            tools::pairwise_align_to_ref::run()?;
         }
     }
     Ok(())
