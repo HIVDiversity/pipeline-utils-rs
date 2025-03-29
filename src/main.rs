@@ -49,6 +49,14 @@ enum Commands {
         consensus_name: String
     },
     AlignConsensus {
+        /// Path to the FASTA file containing the reference seq. Note that only the first sequence in the file is used if multiple are present.
+        #[arg(short='r', long)]
+        reference_file: PathBuf,
+
+        /// Path to the FASTA file containing the query seq. Note that only the first sequence in the file is used if multiple are present.
+        #[arg(short='q', long)]
+        query_file: PathBuf
+
 
     }
 }
