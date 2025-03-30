@@ -36,7 +36,7 @@ enum Commands {
         check_keys_match: bool,
     },
     GetConsensus {
-        /// Path to the input MSA FASA file
+        /// Path to the input MSA FASTA file
         #[arg(short = 'i', long)]
         input_msa: PathBuf,
 
@@ -55,7 +55,20 @@ enum Commands {
 
         /// Path to the FASTA file containing the query seq. Note that only the first sequence in the file is used if multiple are present.
         #[arg(short='q', long)]
-        query_file: PathBuf
+        query_file: PathBuf,
+
+        /// Path to write the resulting trimmed sequence
+        #[arg(short='o', long)]
+        output_file: PathBuf,
+
+        /// Output sequence name
+        #[arg(short='n', long)]
+        output_seq_name: String,
+
+        /// Strip gaps from both the reference and the query before translating and aligning
+        #[arg(short='s', long, default_value_t = true)]
+        strip_gaps: bool
+
 
 
     }
@@ -71,8 +84,8 @@ fn main() -> Result<()>{
         Commands::GetConsensus { input_msa, output_file, consensus_name} => {
             tools::get_consensus::run(input_msa, output_file, consensus_name)?
         },
-        Commands::AlignConsensus { } => {
-            tools::pairwise_align_to_ref::run()?;
+        Commands::AlignConsensus { reference_file, query_file, output_file, output_seq_name, strip_gaps } => {
+            tools::pairwise_align_to_ref::run(reference_file, query_file, output_file, output_seq_name, *strip_gaps)?;
         }
     }
     Ok(())

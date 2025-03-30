@@ -31,7 +31,7 @@ fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool, codon_ta
         // check anything else.
 
         if codon.len() != 3 {
-            log::warn!("The codon {:?} had a length of {} so we're adding a {}", String::from_utf8(codon.to_vec())?, codon.len(), UNKNOWN_AA_CHAR);
+            log::warn!("The codon {:?} had a length of {} so we're adding a {:?}", String::from_utf8(codon.to_vec())?, codon.len(), UNKNOWN_AA_CHAR as char);
             amino_acids.push(FRAMESHIFT_CHAR);
         } else {
             let nt_triplet: [u8; 3] = codon.try_into().expect("The codon should always be a triplet vector since we've checked for it.");
@@ -62,7 +62,12 @@ fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
 
 }
 
-pub fn run(reference_file: &PathBuf, query_file: &PathBuf, output_file: &PathBuf, output_seq_name: &str, strip_gaps: bool) -> Result<()>{
+pub fn run(reference_file: &PathBuf,
+           query_file: &PathBuf,
+           output_file: &PathBuf,
+           output_seq_name: &str,
+           strip_gaps: bool) -> Result<()>{
+
     simple_logger::SimpleLogger::new().env().init()?;
     let codon_table: HashMap<&[u8; 3], &[u8; 1]> = HashMap::from([
         (b"TTT", b"F"),
@@ -130,8 +135,11 @@ pub fn run(reference_file: &PathBuf, query_file: &PathBuf, output_file: &PathBuf
         (b"TAG", b"*"),
         (b"TGA", b"*")]);
 
-    let reference = read_fasta(reference_file)?[0].as_slice();
-    let query = read_fasta(query_file)?[0].as_slice();
+    let reference_read = read_fasta(reference_file)?;
+    let reference = reference_read[0].as_slice();
+
+    let query_read = read_fasta(query_file)?;
+    let query = query_read[0].as_slice();
 
     let ref_aa = translate(reference, false, false, &codon_table)?;
     let ref_aa_slice = ref_aa.as_slice();
@@ -144,10 +152,10 @@ pub fn run(reference_file: &PathBuf, query_file: &PathBuf, output_file: &PathBuf
 
 
     for frame in 0..3{
-        log::info!("Translating consensus in frame {:?}", frame+1);
+        log::info!("Translating query in frame {:?}", frame+1);
         let cons_aa = translate(&query[frame..], true, true, &codon_table)?;
         let alignment = aligner.local(cons_aa.as_slice(), ref_aa_slice);
-        log::info!("Alignment with consensus in frame {:?} gave a score of {:?}", frame, alignment.score);
+        log::info!("Alignment with query in frame {:?} gave a score of {:?}", frame, alignment.score);
         if alignment.score > best_score{
             best_score = alignment.score;
             best_frame = frame;
