@@ -27,7 +27,7 @@ fn load_fasta(file_path: &PathBuf, sequence_store: &mut FastaRecords) {
     // }
 }
 
-fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> {
+pub fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> {
     let gap_char = "-".as_bytes()[0];
     let mut new_nt_seq = Vec::with_capacity(aa_seq.len() * 3);
 

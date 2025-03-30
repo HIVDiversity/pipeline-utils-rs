@@ -1,6 +1,7 @@
 mod tools;
 
 use std::path::PathBuf;
+use std::process::Output;
 use clap::{Subcommand, Parser};
 use anyhow::{Error, Result, Context, anyhow};
 
@@ -67,7 +68,11 @@ enum Commands {
 
         /// Strip gaps from both the reference and the query before translating and aligning
         #[arg(short='s', long, default_value_t = true)]
-        strip_gaps: bool
+        strip_gaps: bool,
+
+        /// What type of sequence to write, either AA or NT
+        #[arg(short='t', long, default_value_t = String::from("AA"))]
+        output_type: String
 
 
 
@@ -84,8 +89,8 @@ fn main() -> Result<()>{
         Commands::GetConsensus { input_msa, output_file, consensus_name} => {
             tools::get_consensus::run(input_msa, output_file, consensus_name)?
         },
-        Commands::AlignConsensus { reference_file, query_file, output_file, output_seq_name, strip_gaps } => {
-            tools::pairwise_align_to_ref::run(reference_file, query_file, output_file, output_seq_name, *strip_gaps)?;
+        Commands::AlignConsensus { reference_file, query_file, output_file, output_seq_name, strip_gaps, output_type } => {
+            tools::pairwise_align_to_ref::run(reference_file, query_file, output_file, output_seq_name, *strip_gaps, output_type)?;
         }
     }
     Ok(())

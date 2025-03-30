@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::iter::Iterator;
 use std::path::{PathBuf};
+use std::process::Output;
 use bio::io::fasta;
 use anyhow::{Result, Context, anyhow};
 use bio::alignment::Alignment;
@@ -10,6 +11,7 @@ use bio::alignment::pairwise::*;
 use bio::alignment::AlignmentOperation::*;
 use bio::scores::blosum62;
 use log::log;
+use crate::tools;
 
 const VERSION: &str = "0.1.0";
 
@@ -62,12 +64,19 @@ fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
 
 }
 
+fn write_fasta(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<()>{
+    let mut writer = fasta::Writer::to_file(output_file)?;
+    writer.write(seq_name, None, seq)?;
+
+    Ok(())
+}
+
 pub fn run(reference_file: &PathBuf,
            query_file: &PathBuf,
            output_file: &PathBuf,
            output_seq_name: &str,
-           strip_gaps: bool) -> Result<()>{
-
+           strip_gaps: bool,
+           output_type: &String) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
     let codon_table: HashMap<&[u8; 3], &[u8; 1]> = HashMap::from([
         (b"TTT", b"F"),
@@ -144,19 +153,19 @@ pub fn run(reference_file: &PathBuf,
     let ref_aa = translate(reference, false, false, &codon_table)?;
     let ref_aa_slice = ref_aa.as_slice();
 
-    let mut aligner = Aligner::with_capacity(query.len()/3, ref_aa.len(), -5, -1, bio::scores::blosum62);
+    let mut aligner = Aligner::with_capacity(query.len() / 3, ref_aa.len(), -5, -1, bio::scores::blosum62);
     let mut best_score = 0;
     let mut best_frame = 0;
-    let mut best_translation: Vec<u8> = Vec::with_capacity(query.len()/3);
-    let mut best_alignment: Alignment;
+    let mut best_translation: Vec<u8> = Vec::with_capacity(query.len() / 3);
+    let mut best_alignment: Alignment = Default::default();
 
-
-    for frame in 0..3{
+    for frame in 0..3 {
         log::info!("Translating query in frame {:?}", frame+1);
         let cons_aa = translate(&query[frame..], true, true, &codon_table)?;
         let alignment = aligner.local(cons_aa.as_slice(), ref_aa_slice);
+
         log::info!("Alignment with query in frame {:?} gave a score of {:?}", frame, alignment.score);
-        if alignment.score > best_score{
+        if alignment.score > best_score {
             best_score = alignment.score;
             best_frame = frame;
             best_translation = cons_aa[alignment.xstart..alignment.xend].to_vec();
@@ -164,9 +173,26 @@ pub fn run(reference_file: &PathBuf,
         }
     }
 
-    log::info!("Choosing translation in frame {:?} with score {:?}:\n{:?}", best_frame, best_score, String::from_utf8(best_translation)? );
+    log::info!("Choosing translation in frame {:?} with score {:?}:\n{:?}", best_frame, best_score, String::from_utf8(best_translation.clone())? );
+    log::info!("With this best alignment, we trimmed the query sequence (AA) from position {} to {}",best_alignment.xstart, best_alignment.xend);
 
-    //
+    if output_type == "AA"{
+        log::info!("Writing trimmed query amino acid sequence to {:?}", output_file);
+        write_fasta(output_file, output_seq_name, &best_translation)?;
+
+    }else{
+        if output_type!= "NT"{
+            log::error!("Unrecognized output type, outputting NT sequence")
+        }
+
+        let trim_nt_start = best_alignment.xstart * 3;
+        let trim_nt_end = best_alignment.xend * 3;
+        let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
+        write_fasta(output_file, output_seq_name, &trimmed_nt)?;
+        log::info!("Outputting NT sequence to {:?}", output_file);
+    }
+
+//
     //
     // println!("{}", alignment.pretty(cons_aa.as_slice(), ref_aa.as_slice(), 160));
     // println!("{:?}", alignment.score);
