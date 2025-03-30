@@ -192,10 +192,5 @@ pub fn run(reference_file: &PathBuf,
         log::info!("Outputting NT sequence to {:?}", output_file);
     }
 
-//
-    //
-    // println!("{}", alignment.pretty(cons_aa.as_slice(), ref_aa.as_slice(), 160));
-    // println!("{:?}", alignment.score);
-
     Ok(())
 }
