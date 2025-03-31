@@ -1,4 +1,5 @@
 mod tools;
+mod utils;
 
 use std::path::PathBuf;
 use std::process::Output;
@@ -76,6 +77,9 @@ enum Commands {
 
 
 
+    },
+    AlignAndTrim{
+
     }
 }
 
@@ -91,6 +95,9 @@ fn main() -> Result<()>{
         },
         Commands::AlignConsensus { reference_file, query_file, output_file, output_seq_name, strip_gaps, output_type } => {
             tools::pairwise_align_to_ref::run(reference_file, query_file, output_file, output_seq_name, *strip_gaps, output_type)?;
+        },
+        Commands::AlignAndTrim {} =>{
+            tools::align_and_trim::run();
         }
     }
     Ok(())

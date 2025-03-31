@@ -13,3 +13,4 @@ simple_logger = "5.0.0"
 anyhow = "1.0.89"
 colored = "2.1.0"
 nalgebra = "0.33.2"
+phf = { version = "0.11", features = ["macros"] }
