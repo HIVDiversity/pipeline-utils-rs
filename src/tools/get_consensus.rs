@@ -4,6 +4,10 @@ use bio::io::fasta;
 use anyhow::{Result, Context, anyhow};
 use nalgebra::DMatrix;
 use colored::Colorize;
+use utils::fasta_utils;
+use crate::utils;
+use crate::utils::fasta_utils::load_fasta;
+
 const VERSION: &str = "0.1.0";
 
 fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
@@ -74,7 +78,9 @@ pub fn run(input_seqs_aligned: &PathBuf, output_path: &PathBuf, consensus_name: 
     log::info!("{}" ,format!("This is get-consensus version {}", VERSION).bold().bright_green());
 
     log::info!("Reading input FASTA file: {:?}", input_seqs_aligned);
-    let seqs = read_fasta(input_seqs_aligned)?;
+    let seqs_map = fasta_utils::load_fasta(input_seqs_aligned)?;
+    let seqs: Vec<Vec<u8>> = seqs_map.into_iter().map(|(_, seq)| seq).collect();
+
     log::info!("Successfully read {} sequences into memory.", seqs.len());
 
     let seq_matrix = sequences_to_matrix(&seqs)?;

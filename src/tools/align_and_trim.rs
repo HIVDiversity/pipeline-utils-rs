@@ -16,8 +16,9 @@ use bio::pattern_matching::myers::Myers;
 use serde_json::to_vec;
 use utils::translate;
 use utils::fasta_utils;
+use fasta_utils::FastaRecords;
 
-type FastaRecords = HashMap<String, Vec<u8>>;
+
 
 const VERSION: &str = "0.1.0";
 
@@ -69,33 +70,15 @@ fn process_sequence(consensus_start_kmer: &[u8],
         Ok(trimmed_query.to_vec())
     }
 }
-// TODO: move to a public function
-fn load_fasta(file_path: &PathBuf) -> Result<FastaRecords> {
-    let mut sequences: FastaRecords = FastaRecords::new();
-    let reader = fasta::Reader::from_file(file_path)
-        .expect("Could not open file.");
 
-    // let mut parsing_errors = 0;
 
-    for result in reader.records() {
-        let record = result.expect("This record is invalid and failed to parse.");
-        sequences.insert(record.id().to_string(), record.seq().to_vec());
-    }
-
-    Ok(sequences)
-
-    // if parsing_errors > 0 {
-    //     log::warn!("There were {parsing_errors} records that couldn't be parsed.")
-    // }
-}
-
-fn process_file(query_file: &PathBuf, consensus: &[u8], kmer_size: u8, max_align_distance: u8, output_type: &String) -> Result<FastaRecords>{
+fn process_file(query_file: &PathBuf, consensus: &[u8], kmer_size: i32, max_align_distance: u8, output_type: &String) -> Result<FastaRecords>{
 
     let final_index = consensus.len() as i32 - kmer_size;
-    let start_query = &consensus[0..kmer_size];
-    let end_query = consensus[final_index..].iter().rev().cloned().collect::<Vec<u8>>();
+    let start_query = &consensus[0..kmer_size as usize];
+    let end_query = consensus[final_index as usize..].iter().rev().cloned().collect::<Vec<u8>>();
 
-    let query_sequences = load_fasta(query_file)?;
+    let query_sequences = fasta_utils::load_fasta(query_file)?;
     let mut trimmed_sequences: FastaRecords = FastaRecords::new();
 
     for query_sequence in query_sequences {
@@ -115,12 +98,12 @@ fn process_file(query_file: &PathBuf, consensus: &[u8], kmer_size: u8, max_align
 pub fn run(input_file: &PathBuf,
            consensus_file: &PathBuf,
            output_file: &PathBuf,
-           kmer_size: u8,
+           kmer_size: i32,
            output_type: &String)-> Result<()>{
     simple_logger::SimpleLogger::new().env().init()?;
 
-    let consensus = load_fasta(consensus_file)?
-        .values()
+    let consensus_seq = fasta_utils::load_fasta(consensus_file)?;
+    let consensus = consensus_seq.values()
         .next()
         .with_context(|| "Consensus file contained no sequences.")?
         .as_slice();

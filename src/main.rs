@@ -6,6 +6,12 @@ use std::process::Output;
 use clap::{Subcommand, Parser};
 use anyhow::{Error, Result, Context, anyhow};
 
+#[derive(clap::ValueEnum, Clone)]
+enum SequenceOutputType{
+    AA,
+    NT
+}
+
 #[derive(Parser)]
 #[command(name = "ap-utils")]
 #[command(about = "A collection of CLI utilities for the alignment pipeline")]
@@ -79,6 +85,26 @@ enum Commands {
 
     },
     AlignAndTrim{
+        /// The FASTA file containing the untrimmed nucleotide sequences
+        #[arg(short='q', long)]
+        query_sequences: PathBuf,
+
+
+        /// The file with the NT consensus sequence.
+        #[arg(short='c', long)]
+        consensus_sequence: PathBuf,
+
+        /// The output file
+        #[arg(short='o', long)]
+        output_file: PathBuf,
+
+        /// The size of the kmer to use to compare the consensus to the query. Increasing this value will increase runtime. Decreasing it will reduce specificity.
+        #[arg(short='k', long, default_value_t = 10 as i32)]
+        kmer_size: i32,
+
+        /// What type of sequence to write, either AA or NT
+        #[arg(short='t', long, default_value_t = String::from("AA"))]
+        output_type: String
 
     }
 }
@@ -96,8 +122,8 @@ fn main() -> Result<()>{
         Commands::AlignConsensus { reference_file, query_file, output_file, output_seq_name, strip_gaps, output_type } => {
             tools::pairwise_align_to_ref::run(reference_file, query_file, output_file, output_seq_name, *strip_gaps, output_type)?;
         },
-        Commands::AlignAndTrim {} =>{
-            tools::align_and_trim::run();
+        Commands::AlignAndTrim {query_sequences, consensus_sequence, output_file, kmer_size, output_type} =>{
+            tools::align_and_trim::run(query_sequences, consensus_sequence, output_file, *kmer_size, output_type)?;
         }
     }
     Ok(())

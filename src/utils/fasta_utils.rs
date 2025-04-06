@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use bio::io::fasta;
 
+pub type FastaRecords = HashMap<String, Vec<u8>>;
+
 pub fn write_fasta_sequences(output_file: &PathBuf, sequences: &HashMap<String, Vec<u8>>) -> Result<()>{
     let mut writer = fasta::Writer::to_file(output_file).with_context(|| "Could not open output file")?;
 
@@ -11,4 +13,23 @@ pub fn write_fasta_sequences(output_file: &PathBuf, sequences: &HashMap<String, 
     }
 
     Ok(())
+}
+
+// TODO: move to a public function
+pub fn load_fasta(file_path: &PathBuf) -> Result<FastaRecords> {
+    let mut sequences: FastaRecords = FastaRecords::new();
+    let reader = fasta::Reader::from_file(file_path)
+        .expect("Could not open file.");
+
+    // let mut parsing_errors = 0;
+
+    for result in reader.records() {
+        let record = result.expect("This record is invalid and failed to parse.");
+        let mut seq = record.seq().to_vec();
+        seq.make_ascii_uppercase();
+        sequences.insert(record.id().to_string(), seq);
+    }
+
+    Ok(sequences)
+
 }
