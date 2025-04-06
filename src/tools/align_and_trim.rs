@@ -55,7 +55,7 @@ fn process_sequence(consensus_start_kmer: &[u8],
         end_aln.ystart, end_aln.yend, end_aln.score
     );
 
-    let start_trim = start_aln.ystart;
+    let start_trim = start_aln.ystart + 1;
     let end_trim = query.len() - end_aln.ystart+1;
     let trimmed_query = &query[start_trim..end_trim].to_owned();
 
