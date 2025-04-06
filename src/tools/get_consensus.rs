@@ -8,7 +8,7 @@ use utils::fasta_utils;
 use crate::utils;
 use crate::utils::fasta_utils::load_fasta;
 
-const VERSION: &str = "0.1.0";
+const VERSION: &str = "0.2.1";
 
 fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
     let reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
@@ -68,7 +68,10 @@ fn build_consensus(msa: &DMatrix<u8>) -> Result<Vec<u8>>{
 
 fn write_consensus(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<()>{
     let mut writer = fasta::Writer::to_file(output_file)?;
-    writer.write(seq_name, None, seq)?;
+    let mut degapped_seq = seq.clone();
+    let gap_char = b'-';
+    degapped_seq.retain(|&val| val != gap_char);
+    writer.write(seq_name, None, &degapped_seq)?;
 
     Ok(())
 }

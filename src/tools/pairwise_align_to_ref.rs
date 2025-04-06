@@ -185,7 +185,7 @@ pub fn run(reference_file: &PathBuf,
             log::error!("Unrecognized output type, outputting NT sequence")
         }
 
-        let trim_nt_start = best_alignment.xstart * 3;
+        let trim_nt_start = (best_alignment.xstart * 3) + 1;
         let trim_nt_end = best_alignment.xend * 3;
         let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
         write_fasta(output_file, output_seq_name, &trimmed_nt)?;

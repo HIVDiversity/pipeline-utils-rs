@@ -22,20 +22,20 @@ use fasta_utils::FastaRecords;
 
 const VERSION: &str = "0.1.0";
 
-fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Result<Alignment>{
+fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option<Alignment>{
 
     let mut pattern= Myers::<u64>::new(pattern);
     let mut matches = pattern.find_all_lazy(query, max_distance);
 
     // TODO: What happens if we have multiple acceptable matches?
-    let (best_match_end_idx, dist) =  matches.by_ref().min_by_key(|&(_, dist)| dist).unwrap();
+    let (best_match_end_idx, dist) =  matches.by_ref().min_by_key(|&(_, dist)| dist)?;
 
     log::info!("Best match found ending at {} with distance {}", best_match_end_idx, dist);
 
     let mut alignment = Alignment::default();
     matches.alignment_at(best_match_end_idx, &mut alignment);
 
-    Ok(alignment)
+    Some(alignment)
 }
 
 fn process_sequence(consensus_start_kmer: &[u8],
@@ -46,8 +46,8 @@ fn process_sequence(consensus_start_kmer: &[u8],
 
     // Note - the end kmer is assumed to be reversed already!
     let query_reversed = query.iter().rev().cloned().collect::<Vec<u8>>();
-    let start_aln = find_best_alignment(consensus_start_kmer, query, 2)?;
-    let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), 2)?;
+    let start_aln = find_best_alignment(consensus_start_kmer, query, 2).with_context(|| format!("No best alignment found."))?;
+    let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), 2).with_context(|| "No best alignment found")?;
 
 
     log::info!("Found an alignment for the start k-mer from {} to {} (dist {}) and alignment for the send k-mer from {} to {} (dist {})",
