@@ -1,19 +1,9 @@
-use std::collections::HashMap;
 use std::iter::Iterator;
 use std::path::{PathBuf};
-use std::process::Output;
-use bio::io::fasta;
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Result, Context};
 use bio::alignment::Alignment;
-use nalgebra::DMatrix;
-use colored::Colorize;
-use bio::alignment::pairwise::*;
-use bio::scores::blosum62;
-use crate::{tools, utils};
-use bio::pattern_matching::ukkonen::{Ukkonen, unit_cost};
-use bio::pattern_matching::horspool::Horspool;
+use crate::{utils};
 use bio::pattern_matching::myers::Myers;
-use serde_json::to_vec;
 use utils::translate;
 use utils::fasta_utils;
 use fasta_utils::FastaRecords;
@@ -46,7 +36,7 @@ fn process_sequence(consensus_start_kmer: &[u8],
 
     // Note - the end kmer is assumed to be reversed already!
     let query_reversed = query.iter().rev().cloned().collect::<Vec<u8>>();
-    let start_aln = find_best_alignment(consensus_start_kmer, query, 2).with_context(|| format!("No best alignment found."))?;
+    let start_aln = find_best_alignment(consensus_start_kmer, query, 2).with_context(|| "No best alignment found.")?;
     let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), 2).with_context(|| "No best alignment found")?;
 
 

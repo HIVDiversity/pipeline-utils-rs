@@ -1,27 +1,13 @@
 use std::collections::HashMap;
 use std::path::{PathBuf};
 use bio::io::fasta;
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Result, anyhow};
 use nalgebra::DMatrix;
 use colored::Colorize;
 use utils::fasta_utils;
 use crate::utils;
-use crate::utils::fasta_utils::load_fasta;
 
 const VERSION: &str = "0.2.1";
-
-fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
-    let reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
-    let mut seqs: Vec<Vec<u8>> = Vec::new();
-
-    for result in reader.records() {
-        let record = result.expect("This record is invalid and failed to parse.");
-        seqs.push(record.seq().to_vec());
-    }
-
-    Ok(seqs)
-
-}
 
 fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     // Check if sequences are empty

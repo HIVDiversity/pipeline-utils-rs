@@ -1,17 +1,10 @@
 use std::collections::HashMap;
 use std::iter::Iterator;
 use std::path::{PathBuf};
-use std::process::Output;
 use bio::io::fasta;
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Result, Context};
 use bio::alignment::Alignment;
-use nalgebra::DMatrix;
-use colored::Colorize;
 use bio::alignment::pairwise::*;
-use bio::alignment::AlignmentOperation::*;
-use bio::scores::blosum62;
-use log::log;
-use crate::tools;
 
 const VERSION: &str = "0.1.0";
 

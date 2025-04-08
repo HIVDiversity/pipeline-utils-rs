@@ -1,6 +1,5 @@
-use std::collections::HashMap;
 use std::convert::TryInto;
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Result, Context};
 use phf::phf_map;
 
 const GAP_CHAR: u8 = b"-"[0];

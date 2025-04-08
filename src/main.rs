@@ -2,9 +2,8 @@ mod tools;
 mod utils;
 
 use std::path::PathBuf;
-use std::process::Output;
 use clap::{Subcommand, Parser};
-use anyhow::{Error, Result, Context, anyhow};
+use anyhow::{Result};
 
 #[derive(clap::ValueEnum, Clone)]
 enum SequenceOutputType{
