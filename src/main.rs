@@ -123,7 +123,14 @@ enum Commands {
         /// translation. Using this flag will preserve frameshifts as 'X' but avoid '-' in the
         /// translation
         #[arg(short='g', long, default_value_t = false)]
-        ignore_gap_codons: bool
+        ignore_gap_codons: bool,
+
+        /// The total number of nucleotides in a sequence may not be a multiple of three. The last
+        /// codon thus may not be a complete codon. Setting this flag drops that amino acid.
+        /// Alternatively, leaving this flag off will replace codons with insufficient nucleotides
+        /// with a special character.
+        #[arg(short='d', long, default_value_t = false)]
+        drop_incomplete_codons: bool
 
     }
 }
@@ -144,8 +151,8 @@ fn main() -> Result<()>{
         Commands::AlignAndTrim {query_sequences, consensus_sequence, output_file, kmer_size, output_type} =>{
             tools::align_and_trim::run(query_sequences, consensus_sequence, output_file, *kmer_size, output_type)?;
         },
-        Commands::Translate {input_file, output_file, strip_gaps, ignore_gap_codons} =>{
-            tools::translate::run(input_file, output_file, *strip_gaps, *ignore_gap_codons)?;
+        Commands::Translate {input_file, output_file, strip_gaps, ignore_gap_codons, drop_incomplete_codons} =>{
+            tools::translate::run(input_file, output_file, *strip_gaps, *ignore_gap_codons, *drop_incomplete_codons)?;
         }
     }
     Ok(())

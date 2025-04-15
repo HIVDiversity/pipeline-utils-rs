@@ -50,7 +50,7 @@ fn process_sequence(consensus_start_kmer: &[u8],
     let trimmed_query = &query[start_trim..end_trim].to_owned();
 
     if output_type == "AA" {
-        let translated_query = translate::translate(trimmed_query, false, false)?;
+        let translated_query = translate::translate(trimmed_query, false, false, false)?;
         Ok(translated_query)
     }else{
         if output_type != "NT"{

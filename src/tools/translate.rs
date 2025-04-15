@@ -10,11 +10,12 @@ fn translate_fasta_file(
     sequences: &FastaRecords,
     strip_gaps: bool,
     ignore_gap_codons: bool,
+    drop_incomplete_codons: bool
 ) -> Result<FastaRecords> {
     let mut translated_sequences: FastaRecords = FastaRecords::with_capacity(sequences.capacity());
 
     for sequence in sequences {
-        let translated_seq = translate(sequence.1.as_slice(), strip_gaps, ignore_gap_codons)?;
+        let translated_seq = translate(sequence.1.as_slice(), strip_gaps, ignore_gap_codons, drop_incomplete_codons)?;
         translated_sequences.insert(sequence.0.to_string(), translated_seq);
     }
 
@@ -26,6 +27,7 @@ pub fn run(
     output_filepath: &PathBuf,
     strip_gaps: bool,
     ignore_gap_codons: bool,
+    drop_incomplete_codons: bool
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
@@ -34,7 +36,7 @@ pub fn run(
 
     log::info!("Translating sequences.");
     let translated_sequences =
-        translate_fasta_file(&nucleotide_sequences, strip_gaps, ignore_gap_codons)?;
+        translate_fasta_file(&nucleotide_sequences, strip_gaps, ignore_gap_codons, drop_incomplete_codons)?;
     log::info!("Done. Writing sequences to {:?}", output_filepath);
 
     write_fasta_sequences(output_filepath, &translated_sequences)?;
