@@ -105,6 +105,26 @@ enum Commands {
         #[arg(short='t', long, default_value_t = String::from("AA"))]
         output_type: String
 
+    },
+    Translate{
+        /// The FASTA-formatted file containing the nucleotide sequences to translate
+        #[arg(short='i', long)]
+        input_file: PathBuf,
+
+        /// The output file to write the translated amino acid sequences to.
+        #[arg(short='o', long)]
+        output_file: PathBuf,
+
+        /// Remove all the gaps from the sequence before translating
+        #[arg(short='s', long, default_value_t = false)]
+        strip_gaps: bool,
+
+        /// Don't strip gaps, but if a 'codon' contains only gaps, do not include it in the final
+        /// translation. Using this flag will preserve frameshifts as 'X' but avoid '-' in the
+        /// translation
+        #[arg(short='g', long, default_value_t = false)]
+        ignore_gap_codons: bool
+
     }
 }
 
@@ -123,6 +143,9 @@ fn main() -> Result<()>{
         },
         Commands::AlignAndTrim {query_sequences, consensus_sequence, output_file, kmer_size, output_type} =>{
             tools::align_and_trim::run(query_sequences, consensus_sequence, output_file, *kmer_size, output_type)?;
+        },
+        Commands::Translate {input_file, output_file, strip_gaps, ignore_gap_codons} =>{
+            tools::translate::run(input_file, output_file, *strip_gaps, *ignore_gap_codons)?;
         }
     }
     Ok(())

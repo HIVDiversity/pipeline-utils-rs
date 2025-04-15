@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use std::io::repeat;
 use anyhow::{Result, Context};
 use phf::phf_map;
 
@@ -70,7 +71,8 @@ static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map!{
         b"GGG" => b"G",
         b"TAA" => b"*",
         b"TAG" => b"*",
-        b"TGA" => b"*"
+        b"TGA" => b"*",
+        b"---" => b"-",
 };
 
 pub fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool) -> Result<Vec<u8>>{
@@ -87,15 +89,30 @@ pub fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool) -> R
 
         if codon.len() != 3 {
             log::warn!("The codon {:?} had a length of {} so we're adding a {:?}", String::from_utf8(codon.to_vec())?, codon.len(), UNKNOWN_AA_CHAR as char);
-            amino_acids.push(FRAMESHIFT_CHAR);
+            amino_acids.push(UNKNOWN_AA_CHAR);
         } else {
             let nt_triplet: [u8; 3] = codon.try_into().expect("The codon should always be a triplet vector since we've checked for it.");
+
+            let mut num_gaps = 0;
+
+            if !strip_gaps {
+                num_gaps = nt_triplet.iter().filter(|char| **char == GAP_CHAR).count();
+                if (num_gaps == 1) | (num_gaps == 2) {
+                    amino_acids.push(FRAMESHIFT_CHAR);
+                    continue;
+                }
+            }
+
             let amino_acid = CODON_TABLE
                 .get(&nt_triplet)
                 .with_context(|| format!("Couldn't find amino acid {:?}", String::from_utf8(nt_triplet.to_vec())))
-                .unwrap_or(&&[UNKNOWN_AA_CHAR,]);
+                .unwrap_or(&&[UNKNOWN_AA_CHAR, ]);
 
-            amino_acids.push(amino_acid.clone()[0]);
+            if ignore_gap_codons & (amino_acid[0].eq(&GAP_CHAR)) {
+                continue;
+            } else {
+                amino_acids.push(amino_acid.clone()[0]);
+            }
         }
     }
 
@@ -117,6 +134,36 @@ mod tests{
         let dna_seq = "ATGTTATAA";
         let expected_translation = "ML*";
         let translation = translate(dna_seq.as_bytes(), false, false).unwrap();
+
+        assert_eq!(expected_translation.as_bytes(), translation.as_slice());
+
+    }
+
+    #[test]
+    fn strip_gaps_true(){
+        let dna_seq = "ATGTTA-TAA";
+        let expected_translation = "ML*";
+        let translation = translate(dna_seq.as_bytes(), true, false).unwrap();
+
+        assert_eq!(expected_translation.as_bytes(), translation.as_slice());
+
+    }
+
+    #[test]
+    fn strip_gaps_false(){
+        let dna_seq = "ATGTTA-TAA";
+        let expected_translation = "MLX?";
+        let translation = translate(dna_seq.as_bytes(), false, false).unwrap();
+
+        assert_eq!(expected_translation.as_bytes(), translation.as_slice());
+
+    }
+
+    #[test]
+    fn ignore_gap_codons(){
+        let dna_seq = "ATGTTA---TAA";
+        let expected_translation = "ML*";
+        let translation = translate(dna_seq.as_bytes(), false, true).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
 
