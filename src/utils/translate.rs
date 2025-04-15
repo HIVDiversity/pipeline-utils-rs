@@ -6,6 +6,7 @@ use phf::phf_map;
 const GAP_CHAR: u8 = b"-"[0];
 const FRAMESHIFT_CHAR: u8 = b"X"[0];
 const UNKNOWN_AA_CHAR: u8 = b"?"[0];
+const INCOMPLETE_AA_CHAR: u8 = b"~"[0];
 
 static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map!{
         b"TTT" => b"F",
@@ -75,7 +76,7 @@ static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map!{
         b"---" => b"-",
 };
 
-pub fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool) -> Result<Vec<u8>>{
+pub fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool, drop_incomplete_codons: bool) -> Result<Vec<u8>>{
     let mut new_seq = dna_seq.to_vec();
     if strip_gaps{
         new_seq = new_seq.iter().copied().filter(|character| *character != GAP_CHAR).collect();
@@ -88,9 +89,12 @@ pub fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool) -> R
         // check anything else.
 
         if codon.len() != 3 {
-            log::warn!("The codon {:?} had a length of {} so we're adding a {:?}", String::from_utf8(codon.to_vec())?, codon.len(), UNKNOWN_AA_CHAR as char);
-            amino_acids.push(UNKNOWN_AA_CHAR);
-        } else {
+            if !drop_incomplete_codons {
+                log::warn!("The codon {:?} had a length of {} so we're adding a {:?}", String::from_utf8(codon.to_vec())?, codon.len(), INCOMPLETE_AA_CHAR as char);
+                amino_acids.push(INCOMPLETE_AA_CHAR);
+            }
+            continue;
+        }
             let nt_triplet: [u8; 3] = codon.try_into().expect("The codon should always be a triplet vector since we've checked for it.");
 
             let mut num_gaps = 0;
@@ -113,7 +117,7 @@ pub fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool) -> R
             } else {
                 amino_acids.push(amino_acid.clone()[0]);
             }
-        }
+
     }
 
 
