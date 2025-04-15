@@ -1,50 +1,68 @@
+use anyhow::{Context, Result};
+use bio::alignment::pairwise::*;
+use bio::alignment::Alignment;
+use bio::io::fasta;
 use std::collections::HashMap;
 use std::iter::Iterator;
-use std::path::{PathBuf};
-use bio::io::fasta;
-use anyhow::{Result, Context};
-use bio::alignment::Alignment;
-use bio::alignment::pairwise::*;
+use std::path::PathBuf;
 
 const VERSION: &str = "0.1.0";
 
-
 const GAP_CHAR: u8 = b"-"[0];
 const FRAMESHIFT_CHAR: u8 = b"X"[0];
- const UNKNOWN_AA_CHAR: u8 = b"?"[0];
+const UNKNOWN_AA_CHAR: u8 = b"?"[0];
 
-fn translate(dna_seq: &[u8], strip_gaps: bool, ignore_gap_codons: bool, codon_table: &HashMap<&[u8; 3], &[u8; 1]>) -> Result<Vec<u8>>{
+fn translate(
+    dna_seq: &[u8],
+    strip_gaps: bool,
+    ignore_gap_codons: bool,
+    codon_table: &HashMap<&[u8; 3], &[u8; 1]>,
+) -> Result<Vec<u8>> {
     let mut new_seq = dna_seq.to_vec();
-    if strip_gaps{
-        new_seq = new_seq.iter().copied().filter(|character| *character != GAP_CHAR).collect();
+    if strip_gaps {
+        new_seq = new_seq
+            .iter()
+            .copied()
+            .filter(|character| *character != GAP_CHAR)
+            .collect();
     }
 
-    let mut amino_acids = Vec::with_capacity(new_seq.len()/3);
+    let mut amino_acids = Vec::with_capacity(new_seq.len() / 3);
     for codon in new_seq.chunks(3) {
-
         // If the codon is not a multiple of 3, we will always want to replace it with an incomplete amino acid, so we don't need to
         // check anything else.
 
         if codon.len() != 3 {
-            log::warn!("The codon {:?} had a length of {} so we're adding a {:?}", String::from_utf8(codon.to_vec())?, codon.len(), UNKNOWN_AA_CHAR as char);
+            log::warn!(
+                "The codon {:?} had a length of {} so we're adding a {:?}",
+                String::from_utf8(codon.to_vec())?,
+                codon.len(),
+                UNKNOWN_AA_CHAR as char
+            );
             amino_acids.push(FRAMESHIFT_CHAR);
         } else {
-            let nt_triplet: [u8; 3] = codon.try_into().expect("The codon should always be a triplet vector since we've checked for it.");
+            let nt_triplet: [u8; 3] = codon
+                .try_into()
+                .expect("The codon should always be a triplet vector since we've checked for it.");
             let amino_acid = codon_table
                 .get(&nt_triplet)
-                .with_context(|| format!("Couldn't find amino acid {:?}", String::from_utf8(nt_triplet.to_vec())))
-                .unwrap_or(&&[UNKNOWN_AA_CHAR,]);
+                .with_context(|| {
+                    format!(
+                        "Couldn't find amino acid {:?}",
+                        String::from_utf8(nt_triplet.to_vec())
+                    )
+                })
+                .unwrap_or(&&[UNKNOWN_AA_CHAR]);
 
             amino_acids.push(amino_acid.clone()[0]);
         }
     }
 
-
     Ok(amino_acids)
 }
 
 // TODO: Move readfasta to the utils crate
-fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
+fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>> {
     let reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
     let mut seqs: Vec<Vec<u8>> = Vec::new();
 
@@ -54,22 +72,23 @@ fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>>{
     }
 
     Ok(seqs)
-
 }
 
-fn write_fasta(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<()>{
+fn write_fasta(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<()> {
     let mut writer = fasta::Writer::to_file(output_file)?;
     writer.write(seq_name, None, seq)?;
 
     Ok(())
 }
 
-pub fn run(reference_file: &PathBuf,
-           query_file: &PathBuf,
-           output_file: &PathBuf,
-           output_seq_name: &str,
-           strip_gaps: bool,
-           output_type: &String) -> Result<()> {
+pub fn run(
+    reference_file: &PathBuf,
+    query_file: &PathBuf,
+    output_file: &PathBuf,
+    output_seq_name: &str,
+    strip_gaps: bool,
+    output_type: &String,
+) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
     let codon_table: HashMap<&[u8; 3], &[u8; 1]> = HashMap::from([
         (b"TTT", b"F"),
@@ -135,7 +154,8 @@ pub fn run(reference_file: &PathBuf,
         (b"GGG", b"G"),
         (b"TAA", b"*"),
         (b"TAG", b"*"),
-        (b"TGA", b"*")]);
+        (b"TGA", b"*"),
+    ]);
 
     let reference_read = read_fasta(reference_file)?;
     let reference = reference_read[0].as_slice();
@@ -146,18 +166,23 @@ pub fn run(reference_file: &PathBuf,
     let ref_aa = translate(reference, false, false, &codon_table)?;
     let ref_aa_slice = ref_aa.as_slice();
 
-    let mut aligner = Aligner::with_capacity(query.len() / 3, ref_aa.len(), -5, -1, bio::scores::blosum62);
+    let mut aligner =
+        Aligner::with_capacity(query.len() / 3, ref_aa.len(), -5, -1, bio::scores::blosum62);
     let mut best_score = 0;
     let mut best_frame = 0;
     let mut best_translation: Vec<u8> = Vec::with_capacity(query.len() / 3);
     let mut best_alignment: Alignment = Default::default();
 
     for frame in 0..3 {
-        log::info!("Translating query in frame {:?}", frame+1);
+        log::info!("Translating query in frame {:?}", frame + 1);
         let cons_aa = translate(&query[frame..], true, true, &codon_table)?;
         let alignment = aligner.local(cons_aa.as_slice(), ref_aa_slice);
 
-        log::info!("Alignment with query in frame {:?} gave a score of {:?}", frame, alignment.score);
+        log::info!(
+            "Alignment with query in frame {:?} gave a score of {:?}",
+            frame,
+            alignment.score
+        );
         if alignment.score > best_score {
             best_score = alignment.score;
             best_frame = frame;
@@ -166,15 +191,26 @@ pub fn run(reference_file: &PathBuf,
         }
     }
 
-    log::info!("Choosing translation in frame {:?} with score {:?}:\n{:?}", best_frame, best_score, String::from_utf8(best_translation.clone())? );
-    log::info!("With this best alignment, we trimmed the query sequence (AA) from position {} to {}",best_alignment.xstart, best_alignment.xend);
+    log::info!(
+        "Choosing translation in frame {:?} with score {:?}:\n{:?}",
+        best_frame,
+        best_score,
+        String::from_utf8(best_translation.clone())?
+    );
+    log::info!(
+        "With this best alignment, we trimmed the query sequence (AA) from position {} to {}",
+        best_alignment.xstart,
+        best_alignment.xend
+    );
 
-    if output_type == "AA"{
-        log::info!("Writing trimmed query amino acid sequence to {:?}", output_file);
+    if output_type == "AA" {
+        log::info!(
+            "Writing trimmed query amino acid sequence to {:?}",
+            output_file
+        );
         write_fasta(output_file, output_seq_name, &best_translation)?;
-
-    }else{
-        if output_type!= "NT"{
+    } else {
+        if output_type != "NT" {
             log::error!("Unrecognized output type, outputting NT sequence")
         }
 

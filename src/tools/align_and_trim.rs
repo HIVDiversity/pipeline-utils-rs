@@ -1,26 +1,27 @@
-use std::iter::Iterator;
-use std::path::{PathBuf};
-use anyhow::{Result, Context};
+use crate::utils;
+use anyhow::{Context, Result};
 use bio::alignment::Alignment;
-use crate::{utils};
 use bio::pattern_matching::myers::Myers;
-use utils::translate;
-use utils::fasta_utils;
 use fasta_utils::FastaRecords;
-
-
+use std::iter::Iterator;
+use std::path::PathBuf;
+use utils::fasta_utils;
+use utils::translate;
 
 const VERSION: &str = "0.1.0";
 
-fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option<Alignment>{
-
-    let mut pattern= Myers::<u64>::new(pattern);
+fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option<Alignment> {
+    let mut pattern = Myers::<u64>::new(pattern);
     let mut matches = pattern.find_all_lazy(query, max_distance);
 
     // TODO: What happens if we have multiple acceptable matches?
-    let (best_match_end_idx, dist) =  matches.by_ref().min_by_key(|&(_, dist)| dist)?;
+    let (best_match_end_idx, dist) = matches.by_ref().min_by_key(|&(_, dist)| dist)?;
 
-    log::info!("Best match found ending at {} with distance {}", best_match_end_idx, dist);
+    log::info!(
+        "Best match found ending at {} with distance {}",
+        best_match_end_idx,
+        dist
+    );
 
     let mut alignment = Alignment::default();
     matches.alignment_at(best_match_end_idx, &mut alignment);
@@ -28,17 +29,19 @@ fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option
     Some(alignment)
 }
 
-fn process_sequence(consensus_start_kmer: &[u8],
-                    consensus_end_kmer: &[u8],
-                    query: &[u8],
-                    max_align_distance: u8,
-                    output_type: &String) -> Result<Vec<u8>>{
-
+fn process_sequence(
+    consensus_start_kmer: &[u8],
+    consensus_end_kmer: &[u8],
+    query: &[u8],
+    max_align_distance: u8,
+    output_type: &String,
+) -> Result<Vec<u8>> {
     // Note - the end kmer is assumed to be reversed already!
     let query_reversed = query.iter().rev().cloned().collect::<Vec<u8>>();
-    let start_aln = find_best_alignment(consensus_start_kmer, query, 2).with_context(|| "No best alignment found.")?;
-    let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), 2).with_context(|| "No best alignment found")?;
-
+    let start_aln = find_best_alignment(consensus_start_kmer, query, 2)
+        .with_context(|| "No best alignment found.")?;
+    let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), 2)
+        .with_context(|| "No best alignment found")?;
 
     log::info!("Found an alignment for the start k-mer from {} to {} (dist {}) and alignment for the send k-mer from {} to {} (dist {})",
         start_aln.ystart, start_aln.yend, start_aln.score,
@@ -46,14 +49,14 @@ fn process_sequence(consensus_start_kmer: &[u8],
     );
 
     let start_trim = start_aln.ystart + 1;
-    let end_trim = query.len() - end_aln.ystart+1;
+    let end_trim = query.len() - end_aln.ystart + 1;
     let trimmed_query = &query[start_trim..end_trim].to_owned();
 
     if output_type == "AA" {
         let translated_query = translate::translate(trimmed_query, false, false, false)?;
         Ok(translated_query)
-    }else{
-        if output_type != "NT"{
+    } else {
+        if output_type != "NT" {
             log::warn!("Output type not recognized, outputting NT sequence.")
         }
 
@@ -61,39 +64,50 @@ fn process_sequence(consensus_start_kmer: &[u8],
     }
 }
 
-
-fn process_file(query_file: &PathBuf, consensus: &[u8], kmer_size: i32, max_align_distance: u8, output_type: &String) -> Result<FastaRecords>{
-
+fn process_file(
+    query_file: &PathBuf,
+    consensus: &[u8],
+    kmer_size: i32,
+    max_align_distance: u8,
+    output_type: &String,
+) -> Result<FastaRecords> {
     let final_index = consensus.len() as i32 - kmer_size;
     let start_query = &consensus[0..kmer_size as usize];
-    let end_query = consensus[final_index as usize..].iter().rev().cloned().collect::<Vec<u8>>();
+    let end_query = consensus[final_index as usize..]
+        .iter()
+        .rev()
+        .cloned()
+        .collect::<Vec<u8>>();
 
     let query_sequences = fasta_utils::load_fasta(query_file)?;
     let mut trimmed_sequences: FastaRecords = FastaRecords::new();
 
     for query_sequence in query_sequences {
-        let trimmed_sequence = process_sequence(start_query,
-        end_query.as_slice(),
-        query_sequence.1.as_slice(),
-        max_align_distance,
-        output_type)?;
+        let trimmed_sequence = process_sequence(
+            start_query,
+            end_query.as_slice(),
+            query_sequence.1.as_slice(),
+            max_align_distance,
+            output_type,
+        )?;
         trimmed_sequences.insert(query_sequence.0, trimmed_sequence.clone());
     }
 
     Ok(trimmed_sequences)
-
-
 }
 
-pub fn run(input_file: &PathBuf,
-           consensus_file: &PathBuf,
-           output_file: &PathBuf,
-           kmer_size: i32,
-           output_type: &String)-> Result<()>{
+pub fn run(
+    input_file: &PathBuf,
+    consensus_file: &PathBuf,
+    output_file: &PathBuf,
+    kmer_size: i32,
+    output_type: &String,
+) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
     let consensus_seq = fasta_utils::load_fasta(consensus_file)?;
-    let consensus = consensus_seq.values()
+    let consensus = consensus_seq
+        .values()
         .next()
         .with_context(|| "Consensus file contained no sequences.")?
         .as_slice();

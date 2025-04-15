@@ -1,19 +1,17 @@
+use anyhow::{anyhow, Context, Result};
+use bio::io::fasta;
+use colored::Colorize;
+use log::{info, warn};
 use std::collections::HashMap;
 use std::fs::File;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::process::exit;
-use bio::io::fasta;
-use log::{info, warn};
-use anyhow::{Result, Context, anyhow};
-use colored::Colorize;
 
 type FastaRecords = HashMap<String, Vec<u8>>;
 const VERSION: &str = "0.2.1";
 
-
 fn load_fasta(file_path: &PathBuf, sequence_store: &mut FastaRecords) {
-    let reader = fasta::Reader::from_file(file_path)
-        .expect("Could not open file.");
+    let reader = fasta::Reader::from_file(file_path).expect("Could not open file.");
 
     // let mut parsing_errors = 0;
 
@@ -51,10 +49,12 @@ pub fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> 
     Ok(new_nt_seq)
 }
 
-fn process_sequences(aa_sequences: &FastaRecords,
-                     nt_sequences: &FastaRecords,
-                     aligned_nt_seqs: &mut FastaRecords,
-                     name_mapping: &HashMap<String, Vec<String>>) -> Result<()> {
+fn process_sequences(
+    aa_sequences: &FastaRecords,
+    nt_sequences: &FastaRecords,
+    aligned_nt_seqs: &mut FastaRecords,
+    name_mapping: &HashMap<String, Vec<String>>,
+) -> Result<()> {
     let mut missing_seqs = 0;
     let gap_char = "-".as_bytes()[0];
     for (sequence_id, aa_sequence) in aa_sequences {
@@ -64,7 +64,10 @@ fn process_sequences(aa_sequences: &FastaRecords,
                     let mut degapped_nt_seq = nt_seq.clone();
                     degapped_nt_seq.retain(|&val| val != gap_char);
 
-                    let new_seq = reverse_translate(&aa_sequence, &degapped_nt_seq).with_context(|| format!("Error in reverse-translating the read {}", nt_seq_name))?;
+                    let new_seq =
+                        reverse_translate(&aa_sequence, &degapped_nt_seq).with_context(|| {
+                            format!("Error in reverse-translating the read {}", nt_seq_name)
+                        })?;
 
                     if aa_sequence.len() * 3 != new_seq.len() {
                         warn!("For seq {sequence_id} -> {nt_seq_name}, the length of the amino acid sequence is different to the translated sequence")
@@ -81,7 +84,10 @@ fn process_sequences(aa_sequences: &FastaRecords,
             missing_seqs += 1;
         }
     }
-    info!("There were {} sequences which were missing either from the NT file or the mapping.", missing_seqs);
+    info!(
+        "There were {} sequences which were missing either from the NT file or the mapping.",
+        missing_seqs
+    );
     Ok(())
 }
 
@@ -93,8 +99,13 @@ fn load_name_file(name_mapping_path: &PathBuf) -> Result<HashMap<String, Vec<Str
     Ok(mappings)
 }
 
-
-pub fn run(aa_filepath: &PathBuf, nt_filepath: &PathBuf, name_mapping: &PathBuf, output_file_path: &PathBuf, check_keys_match: bool) -> Result<()> {
+pub fn run(
+    aa_filepath: &PathBuf,
+    nt_filepath: &PathBuf,
+    name_mapping: &PathBuf,
+    output_file_path: &PathBuf,
+    check_keys_match: bool,
+) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
     let name_mappings = load_name_file(name_mapping)?;
@@ -108,19 +119,28 @@ pub fn run(aa_filepath: &PathBuf, nt_filepath: &PathBuf, name_mapping: &PathBuf,
     let mut keys_match: bool = false;
 
     if check_keys_match {
-        keys_match = (amino_acid_sequences.len() == nuc_sequences.len()) && (amino_acid_sequences.keys().all(|key| nuc_sequences.contains_key(key)));
+        keys_match = (amino_acid_sequences.len() == nuc_sequences.len())
+            && (amino_acid_sequences
+                .keys()
+                .all(|key| nuc_sequences.contains_key(key)));
     }
 
     if check_keys_match && !keys_match {
-        log::error!("The keys in the Amino Acid sequence file do not match the keys in the Nucleotide file");
+        log::error!(
+            "The keys in the Amino Acid sequence file do not match the keys in the Nucleotide file"
+        );
         exit(1);
     } else {
-        process_sequences(&amino_acid_sequences, &nuc_sequences, &mut new_nuc_sequences, &name_mappings)?;
+        process_sequences(
+            &amino_acid_sequences,
+            &nuc_sequences,
+            &mut new_nuc_sequences,
+            &name_mappings,
+        )?;
     }
 
-
-    let mut writer = fasta::Writer::to_file(output_file_path)
-        .expect("Could not open file for writing.");
+    let mut writer =
+        fasta::Writer::to_file(output_file_path).expect("Could not open file for writing.");
 
     for (seq_id, seq) in new_nuc_sequences {
         writer.write(&seq_id, None, seq.as_slice())?;
@@ -128,4 +148,3 @@ pub fn run(aa_filepath: &PathBuf, nt_filepath: &PathBuf, name_mapping: &PathBuf,
 
     Ok(())
 }
-
