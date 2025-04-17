@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::exit;
 
+// TODO: Replace the NT in the sequence name with AA when translating....
+
 fn translate_fasta_file(
     sequences: &FastaRecords,
     strip_gaps: bool,

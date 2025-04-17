@@ -30,17 +30,10 @@ enum Commands {
         #[arg(short = 'n', long)]
         nt_filepath: PathBuf,
 
-        /// Optionally provide a mapping between the names in the AA fasta file, and the ones in the NT file
-        #[arg(short = 'm', long)]
-        name_mapping: PathBuf,
-
         /// Where to write the translated, aligned nt FASTA file
         #[arg(short, long)]
         output_file_path: PathBuf,
 
-        /// Check if the keys in the two files match.
-        #[arg(short, long)]
-        check_keys_match: bool,
     },
     GetConsensus {
         /// Path to the input MSA FASTA file
@@ -179,15 +172,11 @@ fn main() -> Result<()> {
         Commands::ReverseTranslate {
             aa_filepath,
             nt_filepath,
-            name_mapping,
             output_file_path,
-            check_keys_match,
         } => tools::reverse_translate::run(
             aa_filepath,
             nt_filepath,
-            name_mapping,
             output_file_path,
-            *check_keys_match,
         )?,
         Commands::GetConsensus {
             input_msa,
