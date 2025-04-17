@@ -127,6 +127,32 @@ enum Commands {
         #[arg(short = 'd', long, default_value_t = false)]
         drop_incomplete_codons: bool,
     },
+    Collapse{
+        /// The FASTA-formatted file containing the uncollapsed sequences
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+
+        /// The output file to write the collapsed sequences to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+
+        /// The file to write the name mapping to (JSON)
+        #[arg(short = 'n', long)]
+        name_output_file: PathBuf,
+
+        /// If set, sequences are collapsed purely on nucleotide/amino acid identity, not taking
+        /// into account the gap patterns. By default, this is off, and two sequences with identical
+        /// sequence information but different gap patterns are considered different.
+        #[arg(short='s', long, default_value_t = false)]
+        strip_gaps: bool,
+
+        /// The prefix to append to the new sequences when they are collapsed. By default, a unique
+        /// integer will be assigned to each sequence, but we can add a string before it
+        #[arg(short = 'p', long)]
+        sequence_prefix: String
+
+
+    }
 }
 
 fn main() -> Result<()> {
@@ -198,6 +224,16 @@ fn main() -> Result<()> {
                 *drop_incomplete_codons,
             )?;
         }
+        Commands::Collapse {
+            input_file,
+            output_file,
+            name_output_file,
+            strip_gaps,
+            sequence_prefix
+        } => {
+            tools::collapse::run(input_file, output_file, name_output_file, sequence_prefix, *strip_gaps)?;
+        }
+
     }
     Ok(())
 }

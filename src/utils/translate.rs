@@ -3,7 +3,7 @@ use phf::phf_map;
 use std::convert::TryInto;
 use std::io::repeat;
 
-const GAP_CHAR: u8 = b"-"[0];
+pub const GAP_CHAR: u8 = b"-"[0];
 const FRAMESHIFT_CHAR: u8 = b"X"[0];
 const UNKNOWN_AA_CHAR: u8 = b"?"[0];
 const INCOMPLETE_AA_CHAR: u8 = b"~"[0];
