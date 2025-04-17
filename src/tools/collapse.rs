@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 const VERSION: &str = "0.1.0";
 
 type SeqToNameMapping = HashMap<Vec<u8>, Vec<String>>;
+
 fn collapse_sequences(sequences: FastaRecords, strip_gaps: bool) -> Result<SeqToNameMapping> {
     let mut unique_sequences: SeqToNameMapping =
         SeqToNameMapping::with_capacity(sequences.capacity());

@@ -4,3 +4,4 @@ pub mod pairwise_align_to_ref;
 pub mod reverse_translate;
 pub mod translate;
 pub mod collapse;
+pub mod expand;

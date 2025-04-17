@@ -152,6 +152,23 @@ enum Commands {
         sequence_prefix: String
 
 
+    },
+
+    Expand{
+        /// The FASTA-formatted file containing the collapsed sequences
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+
+        /// The JSON file containing a mapping between the current names and the old names
+        #[arg(short = 'n', long)]
+        name_input_file: PathBuf,
+
+        /// The output file to write the un-collapsed sequences to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+
+
+
     }
 }
 
@@ -232,6 +249,9 @@ fn main() -> Result<()> {
             sequence_prefix
         } => {
             tools::collapse::run(input_file, output_file, name_output_file, sequence_prefix, *strip_gaps)?;
+        }
+        Commands::Expand {input_file, name_input_file, output_file} =>{
+            tools::expand::run(input_file, name_input_file, output_file)?;
         }
 
     }
