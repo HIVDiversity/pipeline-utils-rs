@@ -5,10 +5,11 @@ use bio::pattern_matching::myers::Myers;
 use fasta_utils::FastaRecords;
 use std::iter::Iterator;
 use std::path::PathBuf;
+use colored::Colorize;
 use utils::fasta_utils;
 use utils::translate;
 
-const VERSION: &str = "0.1.0";
+const VERSION: &str = "0.1.1";
 
 fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option<Alignment> {
     let mut pattern = Myers::<u64>::new(pattern);
@@ -105,6 +106,13 @@ pub fn run(
     max_align_distance: i32
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
+
+    log::info!(
+        "{}",
+        format!("This is align-and-trim version {}", VERSION)
+            .bold()
+            .bright_green()
+    );
 
     let consensus_seq = fasta_utils::load_fasta(consensus_file)?;
     let consensus = consensus_seq
