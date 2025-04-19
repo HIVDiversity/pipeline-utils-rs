@@ -195,7 +195,7 @@ fn main() -> Result<()> {
             strip_gaps,
             output_type,
         } => {
-            tools::pairwise_align_to_ref::run(
+            tools::trim_query_to_ref::run(
                 reference_file,
                 query_file,
                 output_file,
