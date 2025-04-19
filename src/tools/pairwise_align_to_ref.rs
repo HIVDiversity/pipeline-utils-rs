@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use colored::Colorize;
 use crate::utils::translate::translate;
 
-const VERSION: &str = "0.1.1";
+const VERSION: &str = "0.2.0";
 
 
 // TODO: Move readfasta to the utils crate
