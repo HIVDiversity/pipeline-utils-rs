@@ -9,7 +9,7 @@ use colored::Colorize;
 use utils::fasta_utils;
 use utils::translate;
 
-const VERSION: &str = "0.1.1";
+const VERSION: &str = "0.1.2";
 
 fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option<Alignment> {
     let mut pattern = Myers::<u64>::new(pattern);
@@ -49,8 +49,8 @@ fn process_sequence(
         end_aln.ystart, end_aln.yend, end_aln.score
     );
 
-    let start_trim = start_aln.ystart + 1;
-    let end_trim = query.len() - end_aln.ystart + 1;
+    let start_trim = start_aln.ystart;
+    let end_trim = query.len() - end_aln.ystart;
     let trimmed_query = &query[start_trim..end_trim].to_owned();
 
     if output_type == "AA" {
@@ -91,7 +91,7 @@ fn process_file(
             max_align_distance,
             output_type,
         )?;
-        trimmed_sequences.insert(query_sequence.0, trimmed_sequence.clone());
+        trimmed_sequences.insert(query_sequence.0, trimmed_sequence);
     }
 
     Ok(trimmed_sequences)
