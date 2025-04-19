@@ -212,7 +212,7 @@ fn main() -> Result<()> {
             max_dist,
             output_type,
         } => {
-            tools::align_and_trim::run(
+            tools::trim_seqs_to_query::run(
                 query_sequences,
                 consensus_sequence,
                 output_file,
