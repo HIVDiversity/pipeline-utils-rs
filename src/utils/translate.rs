@@ -8,6 +8,8 @@ const FRAMESHIFT_CHAR: u8 = b"X"[0];
 const UNKNOWN_AA_CHAR: u8 = b"?"[0];
 const INCOMPLETE_AA_CHAR: u8 = b"~"[0];
 
+pub const STOP_CHAR: u8 = b"*"[0];
+
 static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
         b"TTT" => b"F",
         b"TTC" => b"F",

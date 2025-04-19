@@ -4,6 +4,7 @@ mod utils;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use crate::tools::trim_seqs_to_query::OperatingMode;
 
 #[derive(clap::ValueEnum, Clone)]
 enum SequenceOutputType {
@@ -97,6 +98,10 @@ enum Commands {
         /// What type of sequence to write, either AA or NT
         #[arg(short='t', long, default_value_t = String::from("AA"))]
         output_type: String,
+
+        /// Operating mode
+        #[clap(short='d', long, value_enum, default_value_t = OperatingMode::DoubleMatch)]
+        operating_mode: OperatingMode
     },
     Translate {
         /// The FASTA-formatted file containing the nucleotide sequences to translate
@@ -211,6 +216,7 @@ fn main() -> Result<()> {
             kmer_size,
             max_dist,
             output_type,
+            operating_mode
         } => {
             tools::trim_seqs_to_query::run(
                 query_sequences,
@@ -218,7 +224,8 @@ fn main() -> Result<()> {
                 output_file,
                 *kmer_size,
                 output_type,
-                *max_dist
+                *max_dist,
+                operating_mode.clone()
             )?;
         }
         Commands::Translate {

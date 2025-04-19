@@ -5,6 +5,11 @@ use std::path::PathBuf;
 
 pub type FastaRecords = HashMap<String, Vec<u8>>;
 
+#[derive(Clone, Copy)]
+pub enum SequenceType{
+    Nucleotide,
+    AminoAcid
+}
 pub fn write_fasta_sequences(
     output_file: &PathBuf,
     sequences: &HashMap<String, Vec<u8>>,
