@@ -5,8 +5,9 @@ use bio::io::fasta;
 use std::collections::HashMap;
 use std::iter::Iterator;
 use std::path::PathBuf;
+use colored::Colorize;
 
-const VERSION: &str = "0.1.0";
+const VERSION: &str = "0.1.1";
 
 const GAP_CHAR: u8 = b"-"[0];
 const FRAMESHIFT_CHAR: u8 = b"X"[0];
@@ -90,6 +91,14 @@ pub fn run(
     output_type: &String,
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
+
+    log::info!(
+        "{}",
+        format!("This is pairwise-align-to-ref version {}", VERSION)
+            .bold()
+            .bright_green()
+    );
+
     let codon_table: HashMap<&[u8; 3], &[u8; 1]> = HashMap::from([
         (b"TTT", b"F"),
         (b"TTC", b"F"),
