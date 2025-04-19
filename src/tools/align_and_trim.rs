@@ -38,12 +38,12 @@ fn process_sequence(
 ) -> Result<Vec<u8>> {
     // Note - the end kmer is assumed to be reversed already!
     let query_reversed = query.iter().rev().cloned().collect::<Vec<u8>>();
-    let start_aln = find_best_alignment(consensus_start_kmer, query, 2)
+    let start_aln = find_best_alignment(consensus_start_kmer, query, max_align_distance)
         .with_context(|| "No best alignment found.")?;
-    let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), 2)
+    let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), max_align_distance)
         .with_context(|| "No best alignment found")?;
 
-    log::info!("Found an alignment for the start k-mer from {} to {} (dist {}) and alignment for the send k-mer from {} to {} (dist {})",
+    log::info!("Found an alignment for the start k-mer from {} to {} (dist {}) and alignment for the end k-mer from {} to {} (dist {})",
         start_aln.ystart, start_aln.yend, start_aln.score,
         end_aln.ystart, end_aln.yend, end_aln.score
     );
@@ -102,6 +102,7 @@ pub fn run(
     output_file: &PathBuf,
     kmer_size: i32,
     output_type: &String,
+    max_align_distance: i32
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
@@ -112,7 +113,7 @@ pub fn run(
         .with_context(|| "Consensus file contained no sequences.")?
         .as_slice();
 
-    let output_seqs = process_file(input_file, consensus, kmer_size, 2, output_type)?;
+    let output_seqs = process_file(input_file, consensus, kmer_size, max_align_distance as u8, output_type)?;
 
     fasta_utils::write_fasta_sequences(output_file, &output_seqs)?;
 

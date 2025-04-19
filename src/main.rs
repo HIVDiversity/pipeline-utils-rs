@@ -90,6 +90,10 @@ enum Commands {
         #[arg(short='k', long, default_value_t = 10 as i32)]
         kmer_size: i32,
 
+        /// The maximum distance that the kmer can be from where it matches. Higher numbers here mean less specific matches
+        #[arg(short='m', long, default_value_t = 2 as i32)]
+        max_dist: i32,
+
         /// What type of sequence to write, either AA or NT
         #[arg(short='t', long, default_value_t = String::from("AA"))]
         output_type: String,
@@ -205,6 +209,7 @@ fn main() -> Result<()> {
             consensus_sequence,
             output_file,
             kmer_size,
+            max_dist,
             output_type,
         } => {
             tools::align_and_trim::run(
@@ -213,6 +218,7 @@ fn main() -> Result<()> {
                 output_file,
                 *kmer_size,
                 output_type,
+                *max_dist
             )?;
         }
         Commands::Translate {
