@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use colored::Colorize;
 use crate::utils::translate::translate;
 
-const VERSION: &str = "0.3.4";
+const VERSION: &str = "0.3.5";
 
 
 // TODO: Move readfasta to the utils crate
@@ -49,6 +49,8 @@ pub fn run(
             .bold()
             .bright_green()
     );
+
+    log::info!("Using a gap open penalty of {} and a gap extend penalty of {}", gap_open_penalty, gap_extend_penalty);
 
     let reference_read = read_fasta(reference_file)?;
     let reference = reference_read[0].as_slice();
