@@ -72,12 +72,14 @@ enum Commands {
         #[arg(short = 's', long, default_value_t = true)]
         strip_gaps: bool,
 
-        /// The gap open penalty. This must be entered as a negative number
-        #[arg(long, default_value_t = -5)]
+        /// The gap open penalty. Do not use a negative number here - enter a positive number and it
+        /// will be converted to a negative one. e.g 10 becomes -10
+        #[arg(long, default_value_t = 5)]
         gap_open_penalty: i32,
 
-        /// The gap extension penalty. This must be entered as a negative number
-        #[arg(long, default_value_t = -5)]
+        /// The gap extension penalty. Do not use a negative number here - enter a positive number and it
+        /// will be converted to a negative one. e.g 10 becomes -10
+        #[arg(long, default_value_t = 1)]
         gap_extension_penalty: i32,
 
         /// What type of sequence to write, either AA or NT
@@ -219,8 +221,8 @@ fn main() -> Result<()> {
                 output_seq_name,
                 *strip_gaps,
                 output_type,
-                *gap_open_penalty,
-                *gap_extension_penalty
+                (*gap_open_penalty) * -1,
+                (*gap_extension_penalty) * -1
             )?;
         }
         Commands::AlignAndTrim {
