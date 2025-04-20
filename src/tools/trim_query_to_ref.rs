@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use colored::Colorize;
 use crate::utils::translate::translate;
 
-const VERSION: &str = "0.2.2";
+const VERSION: &str = "0.3.4";
 
 
 // TODO: Move readfasta to the utils crate
@@ -59,8 +59,12 @@ pub fn run(
 
     let ref_aa_slice = ref_aa.as_slice();
 
+    let scoring = Scoring::new(-5, -1, bio::scores::blosum62)
+        .yclip(MIN_SCORE)
+        .xclip(-10);
+
     let mut aligner =
-        Aligner::with_capacity(query.len() / 3, ref_aa.len(), -5, -1, bio::scores::blosum62);
+        Aligner::with_capacity_and_scoring(query.len() / 3, ref_aa.len(), scoring);
 
     let mut best_score = 0;
     let mut best_frame = 0;
@@ -72,7 +76,7 @@ pub fn run(
 
         // TODO: Add error handling if the cons_aa can't be translated
         let cons_aa = translate(&query[frame..], true, true, true)?;
-        let alignment = aligner.local(cons_aa.as_slice(), ref_aa_slice);
+        let alignment = aligner.custom(cons_aa.as_slice(), ref_aa_slice);
 
         log::info!(
             "Alignment with query in frame {:?} gave a score of {:?}",
@@ -99,8 +103,9 @@ pub fn run(
         best_alignment.xend
     );
 
-    // TODO: Allow outputting both
+    log::info!("Alignment:\n{}", best_alignment.pretty(translate(&query[best_frame..], true, true, true)?.as_slice(), ref_aa_slice, 120));
 
+    // TODO: Allow outputting both
     if output_type == "AA" {
         log::info!(
             "Writing trimmed query amino acid sequence to {:?}",
