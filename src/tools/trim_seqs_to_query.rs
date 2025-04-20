@@ -12,7 +12,7 @@ use utils::translate;
 use crate::utils::fasta_utils::SequenceType;
 use crate::utils::translate::{translate, STOP_CHAR};
 
-const VERSION: &str = "0.2.3";
+const VERSION: &str = "0.2.4";
 
 #[derive(ValueEnum, Clone, Copy)]
 pub enum OperatingMode {
@@ -77,7 +77,7 @@ fn process_sequence_double_match(
 
     let Some(start_aln) = find_best_alignment(consensus_start_kmer, query, max_align_distance) else {
         log::warn!("No best start alignment found for {:?}.", seq_name);
-        query.into_vec()
+        return Ok(query.to_vec());
     };
 
     // Note - the end kmer is assumed to be reversed already!
@@ -86,10 +86,10 @@ fn process_sequence_double_match(
 
         // If we don't find the end alignment, we just return the protein trimmed from the start to the whole alignment
         // But we need to make sure trimming is viable
-        query.get(start_aln.ystart..).unwrap_or_else(|| {
+        return Ok(query.get(start_aln.ystart..).unwrap_or_else(|| {
             log::warn!("Trimming the sequence {:?} failed. Tried to trim from {:?} to the end", seq_name, start_aln.ystart);
-            query
-        })
+            return query;
+        }).to_vec());
     };
 
     log::info!("<{:?}> Found an alignment:\n - start k-mer from {} to {} (dist {})\n - end k-mer from {} to {} (dist {})",
