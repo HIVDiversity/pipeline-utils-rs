@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use colored::Colorize;
 use crate::utils::translate::translate;
 
-const VERSION: &str = "0.2.0";
+const VERSION: &str = "0.2.2";
 
 
 // TODO: Move readfasta to the utils crate
@@ -83,7 +83,7 @@ pub fn run(
             best_score = alignment.score;
             best_frame = frame;
             best_translation = cons_aa[alignment.xstart..alignment.xend].to_vec();
-            best_alignment = alignment;
+            best_alignment = alignment.clone();
         }
     }
 
@@ -112,8 +112,9 @@ pub fn run(
             log::error!("Unrecognized output type, outputting NT sequence")
         }
 
-        let trim_nt_start = (best_alignment.xstart * 3);
-        let trim_nt_end = (best_alignment.xend * 3);
+        let trim_nt_start = (best_alignment.xstart * 3) + best_frame;
+        let trim_nt_end = (best_alignment.xend * 3) + best_frame;
+        log::info!("Trimming NT from {:?} to {:?}", trim_nt_start, trim_nt_end);
         let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
         write_fasta(output_file, output_seq_name, &trimmed_nt)?;
         log::info!("Outputting NT sequence to {:?}", output_file);
