@@ -73,11 +73,11 @@ enum Commands {
         strip_gaps: bool,
 
         /// The gap open penalty. This must be entered as a negative number
-        #[arg(short = 's', long, default_value_t = -5)]
+        #[arg(long, default_value_t = -5)]
         gap_open_penalty: i32,
 
         /// The gap extension penalty. This must be entered as a negative number
-        #[arg(short = 's', long, default_value_t = -5)]
+        #[arg(long, default_value_t = -5)]
         gap_extension_penalty: i32,
 
         /// What type of sequence to write, either AA or NT
