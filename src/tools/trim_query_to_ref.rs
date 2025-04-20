@@ -38,6 +38,8 @@ pub fn run(
     output_seq_name: &str,
     strip_gaps: bool,
     output_type: &String,
+    gap_open_penalty: i32,
+    gap_extend_penalty: i32
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
@@ -59,7 +61,7 @@ pub fn run(
 
     let ref_aa_slice = ref_aa.as_slice();
 
-    let scoring = Scoring::new(-5, -1, bio::scores::blosum62)
+    let scoring = Scoring::new(gap_open_penalty, gap_extend_penalty, bio::scores::blosum62)
         .yclip(MIN_SCORE)
         .xclip(-10);
 

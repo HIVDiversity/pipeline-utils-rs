@@ -49,6 +49,8 @@ enum Commands {
         #[arg(short = 'n', long)]
         consensus_name: String,
     },
+    /// Given a long consensus sequence containing a shorter reference sequence, extract the shorter
+    /// reference sequence by aligning the ref seq to the cons seq and trimming.
     AlignConsensus {
         /// Path to the FASTA file containing the reference seq. Note that only the first sequence in the file is used if multiple are present.
         #[arg(short = 'r', long)]
@@ -69,6 +71,14 @@ enum Commands {
         /// Strip gaps from both the reference and the query before translating and aligning
         #[arg(short = 's', long, default_value_t = true)]
         strip_gaps: bool,
+
+        /// The gap open penalty. This must be entered as a negative number
+        #[arg(short = 's', long, default_value_t = -5)]
+        gap_open_penalty: i32,
+
+        /// The gap extension penalty. This must be entered as a negative number
+        #[arg(short = 's', long, default_value_t = -5)]
+        gap_extension_penalty: i32,
 
         /// What type of sequence to write, either AA or NT
         #[arg(short='t', long, default_value_t = String::from("AA"))]
@@ -198,6 +208,8 @@ fn main() -> Result<()> {
             output_file,
             output_seq_name,
             strip_gaps,
+            gap_open_penalty,
+            gap_extension_penalty,
             output_type,
         } => {
             tools::trim_query_to_ref::run(
@@ -207,6 +219,8 @@ fn main() -> Result<()> {
                 output_seq_name,
                 *strip_gaps,
                 output_type,
+                *gap_open_penalty,
+                *gap_extension_penalty
             )?;
         }
         Commands::AlignAndTrim {
