@@ -12,7 +12,7 @@ use utils::translate;
 use crate::utils::fasta_utils::SequenceType;
 use crate::utils::translate::{translate, STOP_CHAR};
 
-const VERSION: &str = "0.2.1";
+const VERSION: &str = "0.2.2";
 
 #[derive(ValueEnum, Clone, Copy)]
 pub enum OperatingMode {
@@ -26,12 +26,6 @@ fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option
 
     // TODO: What happens if we have multiple acceptable matches?
     let (best_match_end_idx, dist) = matches.by_ref().min_by_key(|&(_, dist)| dist)?;
-
-    log::info!(
-        "Best match found ending at {} with distance {}",
-        best_match_end_idx,
-        dist
-    );
 
     let mut alignment = Alignment::default();
     matches.alignment_at(best_match_end_idx, &mut alignment);
@@ -74,6 +68,7 @@ fn process_sequence_double_match(
     consensus_start_kmer: &[u8],
     consensus_end_kmer: &[u8],
     query: &[u8],
+    seq_name: &String,
     max_align_distance: u8,
     output_type: SequenceType,
 ) -> Result<Vec<u8>> {
@@ -81,20 +76,24 @@ fn process_sequence_double_match(
     let query_reversed = query.iter().rev().cloned().collect::<Vec<u8>>();
 
     let start_aln = find_best_alignment(consensus_start_kmer, query, max_align_distance)
-        .with_context(|| "No best alignment found.")?;
+        .with_context(|| format!("No best alignment found for {:?}.", seq_name))?;
 
     // Note - the end kmer is assumed to be reversed already!
     let end_aln = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), max_align_distance)
-        .with_context(|| "No best alignment found")?;
+        .with_context(|| format!("No best alignment found for {:?}", seq_name))?;
 
-    log::info!("Found an alignment for the start k-mer from {} to {} (dist {}) and alignment for the end k-mer from {} to {} (dist {})",
+    log::info!("<{:?}> Found an alignment:\n - start k-mer from {} to {} (dist {})\n - end k-mer from {} to {} (dist {})",
+        seq_name,
         start_aln.ystart, start_aln.yend, start_aln.score,
         end_aln.ystart, end_aln.yend, end_aln.score
     );
 
     let start_trim = start_aln.ystart;
     let end_trim = query.len() - end_aln.ystart;
-    let trimmed_query = &query[start_trim..end_trim].to_owned();
+    let trimmed_query = query.get(start_trim..end_trim).unwrap_or_else(|| {
+        log::warn!("Trimming the sequence {:?} failed. Tried to trim from {:?} to {:?}", seq_name, start_trim, end_trim);
+        query
+    });
 
     match output_type {
         SequenceType::Nucleotide => {
@@ -135,11 +134,12 @@ fn process_file(
 
             for (seq_id, seq) in query_sequences{
                 trimmed_sequences.insert(
-                    seq_id,
+                    seq_id.clone(),
                     process_sequence_double_match(
                         start_query,
                         end_query.as_slice(),
                         seq.as_slice(),
+                        &seq_id,
                         max_align_distance,
                         output_type,)?
                 );
