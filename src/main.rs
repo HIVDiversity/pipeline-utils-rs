@@ -88,8 +88,8 @@ enum Commands {
         #[arg(short='t', long, default_value_t = String::from("AA"))]
         output_type: String,
 
-        /// What algorithm to use under the hood
-        #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Standard)]
+        /// What algorithm to use under the hood. Custom uses a semi-global approach, while local is a simple local alignment algorithm
+        #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Local)]
         alignment_mode: AlignmentMode,
 
         /// When using partial, what k value to use

@@ -17,12 +17,13 @@ use std::process::exit;
 use clap::ValueEnum;
 
 
-const VERSION: &str = "0.4.2";
+const VERSION: &str = "0.4.3";
 
 #[derive(ValueEnum, Copy, Clone)]
 pub enum AlignmentMode {
-    Standard,
-    Sparse,
+    Local,
+    Custom,
+    LocalCustom,
 }
 
 #[derive(Clone)]
@@ -75,17 +76,18 @@ fn write_fasta(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<(
     Ok(())
 }
 
+
 fn get_alignment_in_three_frames(ref_seq: &[u8],
                                  query: &[u8],
                                  scoring_function: Scoring<fn(u8, u8) -> i32>,
                                  alignment_mode: AlignmentMode,
 ) -> Vec<AlignmentResult> {
     let ref_seq_aa = translate(ref_seq, true, true, true).unwrap();
+
     let mut aligner =
         Aligner::with_capacity_and_scoring(query.len() / 3, ref_seq_aa.len(), scoring_function);
     let mut results: Vec<AlignmentResult> = Vec::with_capacity(3);
 
-    println!("{:?}", String::from_utf8(ref_seq_aa.clone()));
 
     for frame in 0..3 {
         let query_aa = translate(&query[frame..], true, true, true)
@@ -97,56 +99,39 @@ fn get_alignment_in_three_frames(ref_seq: &[u8],
             })
             .unwrap();
 
-        let alignment = aligner.local(query_aa.as_slice(), ref_seq_aa.as_slice());
+        let mut possible_alignments: Vec<Alignment> = Vec::with_capacity(2);
 
-        let result = AlignmentResult {
-            alignment: Some(alignment.clone()),
-            frame,
-            score: alignment.score,
-            start: alignment.xstart,
-            stop: alignment.xend,
-            trimmed_query: query_aa[alignment.xstart..alignment.xend].to_vec(),
-        };
+        match alignment_mode {
+            AlignmentMode::Local => { possible_alignments.push(aligner.local(query_aa.as_slice(), ref_seq_aa.as_slice())) }
+            AlignmentMode::Custom => { possible_alignments.push(aligner.custom(query_aa.as_slice(), ref_seq_aa.as_slice())) }
+            AlignmentMode::LocalCustom => {
+                possible_alignments.push(aligner.local(query_aa.as_slice(), ref_seq_aa.as_slice()));
+                possible_alignments.push(aligner.custom(query_aa.as_slice(), ref_seq_aa.as_slice()))
+            }
+        }
+
+        for possible_alignment in possible_alignments {
+            let result = AlignmentResult {
+                alignment: Some(possible_alignment.clone()),
+                frame,
+                score: possible_alignment.score,
+                start: possible_alignment.xstart,
+                stop: possible_alignment.xend,
+                trimmed_query: query_aa[possible_alignment.xstart..possible_alignment.xend].to_vec(),
+            };
 
 
-        log::info!(
+            log::info!(
             "Alignment with query in frame {:?} gave a score of {:?}",
-            frame,
-            alignment.score
-        );
+            frame + 1,
+            possible_alignment.score
+            );
 
-        results.push(result)
+            results.push(result)
+        }
     }
 
     results
-}
-
-fn get_alignment_sparse(ref_seq: &[u8], query: &[u8], num_kmers: usize) -> AlignmentResult {
-    let matches = find_kmer_matches(query, ref_seq, num_kmers);
-    let sparse_aln = lcskpp(&matches, num_kmers);
-    let match_path: Vec<(u32, u32)> = sparse_aln.path.iter().map(|i| matches[*i]).collect();
-
-    if match_path.len() < 0 {
-        log::error!("No match found!");
-        exit(1);
-    }
-
-    let start = (match_path[0].1 / 3) as usize;
-    let stop = (match_path[match_path.len() - 1].1 / 3) as usize;
-    let translated_query = translate(&query[start..stop], false, false, true).unwrap();
-    println!(
-        "{}",
-        String::from_utf8(translated_query.clone()).unwrap()
-    );
-
-    AlignmentResult {
-        alignment: None,
-        frame: 0,
-        score: sparse_aln.score as i32,
-        start,
-        stop,
-        trimmed_query: translated_query,
-    }
 }
 
 fn get_best_translation(
@@ -157,11 +142,9 @@ fn get_best_translation(
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
     let mut results;
-    match alignment_mode {
-        AlignmentMode::Standard => { results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode); }
-        AlignmentMode::Sparse => { results = vec![get_alignment_sparse(ref_seq, query, num_kmers as usize)] }
-    }
 
+
+    results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode);
 
     results.sort();
     for (idx, result) in results.iter().enumerate() {
@@ -262,16 +245,6 @@ pub fn run(
     let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
     write_fasta(output_file, output_seq_name, &trimmed_nt)?;
     log::info!("Outputting NT sequence to {:?}", output_file);
-
-    let k = 8;
-    let matches = find_kmer_matches(reference, query, k);
-    let sparse_aln = lcskpp(&matches, k);
-    let match_path: Vec<(u32, u32)> = sparse_aln.path.iter().map(|i| matches[*i]).collect();
-    if match_path.len() > 0 {
-        let new_query =
-            &query[match_path[0].1 as usize..(match_path[match_path.len() - 1].1) as usize];
-        let new_seq = Record::with_attrs("zoop", None, new_query);
-    }
 
 
     Ok(())
