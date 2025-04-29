@@ -4,11 +4,44 @@ use bio::alignment::pairwise::*;
 use bio::alignment::Alignment;
 use bio::io::fasta;
 use colored::Colorize;
+use nalgebra::Vector;
+use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::iter::Iterator;
 use std::path::PathBuf;
 
-const VERSION: &str = "0.3.6";
+const VERSION: &str = "0.4.1";
+
+#[derive(Clone)]
+struct AlignmentResult {
+    alignment: Alignment,
+    frame: usize,
+    score: i32,
+    start: usize,
+    stop: usize,
+    trimmed_query: Vec<u8>,
+}
+
+impl Eq for AlignmentResult {}
+
+impl PartialEq<Self> for AlignmentResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.score.eq(&other.score)
+    }
+}
+
+impl PartialOrd<Self> for AlignmentResult {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.score.partial_cmp(&other.score)
+    }
+}
+
+impl Ord for AlignmentResult {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.score.cmp(&other.score)
+    }
+}
 
 // TODO: Move readfasta to the utils crate
 fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>> {
@@ -28,6 +61,81 @@ fn write_fasta(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<(
     writer.write(seq_name, None, seq)?;
 
     Ok(())
+}
+
+fn get_best_translation(
+    ref_seq: &[u8],
+    query: &[u8],
+    scoring_function: Scoring<fn(u8, u8) -> i32>,
+) -> AlignmentResult {
+    let mut aligner =
+        Aligner::with_capacity_and_scoring(query.len() / 3, ref_seq.len(), scoring_function);
+    let mut results: Vec<AlignmentResult> = Vec::with_capacity(3);
+
+    for frame in 0..3 {
+        let cons_aa = translate(&query[frame..], true, true, true)
+            .with_context(|| {
+                format!(
+                    "Could not translate the query sequence in frame {:?}",
+                    frame + 1
+                )
+            })
+            .unwrap();
+        let alignment = aligner.custom(cons_aa.as_slice(), ref_seq);
+
+        log::info!(
+            "Alignment with query in frame {:?} gave a score of {:?}",
+            frame,
+            alignment.score
+        );
+
+        results.push(AlignmentResult {
+            alignment: alignment.clone(),
+            frame,
+            score: alignment.score,
+            start: alignment.xstart,
+            stop: alignment.xend,
+            trimmed_query: cons_aa[alignment.xstart..alignment.xend].to_vec(),
+        })
+    }
+
+    results.sort();
+    for (idx, result) in results.iter().enumerate() {
+        if result.trimmed_query.starts_with(b"M") {
+            if idx == 0 {
+                log::info!("The best alignment started with an 'M':");
+            } else {
+                log::warn!("The number {:?} best alignment starts with an 'M'. Returning this instead of the first best.", idx+1);
+            }
+
+            log::info!("Score: {:?}", result.score);
+            log::info!("Frame: {:?}", result.frame);
+            log::info!(
+                "Alignment:\n{}",
+                result.alignment.pretty(
+                    translate(&query[result.frame..], true, true, true)
+                        .unwrap()
+                        .as_slice(),
+                    ref_seq,
+                    120
+                )
+            );
+
+            return result.clone();
+        } else {
+            log::warn!(
+                "Alignment number {:?} with score {:?} in frame {:?} did not start with 'M'",
+                idx + 1,
+                result.score,
+                result.frame + 1
+            );
+        }
+    }
+
+    log::warn!(
+        "None of the alignments started with an 'M'. Returning the one with the highest score"
+    );
+    results[0].clone()
 }
 
 pub fn run(
@@ -66,113 +174,24 @@ pub fn run(
 
     let ref_aa_slice = ref_aa.as_slice();
 
-    let scoring = Scoring::new(gap_open_penalty, gap_extend_penalty, bio::scores::blosum62)
+    let scoring = Scoring::new(
+        gap_open_penalty,
+        gap_extend_penalty,
+        bio::scores::blosum62 as fn(u8, u8) -> i32,
+    )
         .yclip(MIN_SCORE)
         .xclip(-10);
 
-    let mut aligner = Aligner::with_capacity_and_scoring(query.len() / 3, ref_aa.len(), scoring);
+    let trimmed_alignment = get_best_translation(ref_aa_slice, query, scoring);
 
-    let mut best_functional_score = 0;
-    let mut best_score = 0;
-    let mut best_functional_frame: Option<usize> = None;
-    let mut best_frame: usize = 0;
-    let mut best_translation: Vec<u8> = Vec::with_capacity(query.len() / 3);
-    let mut best_alignment: Alignment = Default::default();
+    let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
+    let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
 
-    for frame in 0..3 {
-        log::info!("Translating query in frame {:?}", frame + 1);
+    log::info!("Trimming NT from {:?} to {:?}", trim_nt_start, trim_nt_end);
 
-        // TODO: Add error handling if the cons_aa can't be translated
-        let cons_aa = translate(&query[frame..], true, true, true)?;
-        let alignment = aligner.custom(cons_aa.as_slice(), ref_aa_slice);
-
-        log::info!(
-            "Alignment with query in frame {:?} gave a score of {:?}",
-            frame,
-            alignment.score
-        );
-        log::info!(
-            "\n{}",
-            alignment.pretty(cons_aa.as_slice(), ref_aa_slice, 120)
-        );
-        let putative_translation = cons_aa[alignment.xstart..alignment.xend].to_vec();
-
-        let translation_starts_with_m =
-            putative_translation.get(0).unwrap_or(&b"?"[0]).eq(&b"M"[0]);
-        let alignment_has_better_score = alignment.score > best_functional_score;
-
-        match (translation_starts_with_m, alignment_has_better_score) {
-            (true, true) => {
-                best_functional_score = alignment.score;
-                best_score = alignment.score;
-                best_functional_frame = Some(frame);
-                best_frame = frame;
-                best_translation = putative_translation.clone();
-                best_alignment = alignment.clone();
-            }
-            (true, false) => {}
-            (false, true) => {
-                log::info!("The translation in frame {:?} had a better score {:?} than the previous best {:?} in frame {:?}. We're still going to keep the previous best, but this could indicate a frameshift in the alignment.",
-                frame, alignment.score, best_functional_score,best_functional_frame);
-                best_score = alignment.score;
-                best_frame = frame;
-            }
-            (false, false) => {}
-        }
-    }
-
-    best_frame = match best_functional_frame{
-        Some(frame) => frame,
-        None =>{
-            log::info!("We were unable to find a frame that started with an M. We'll thus use the sequence with the best alignment score, even though it doesn't start with an M.");
-
-            best_translation = translate(&query[best_frame..], true, true, true)?;
-            best_alignment = aligner.custom(best_translation.as_slice(), ref_aa_slice);
-            best_frame
-        }
-    };
-
-
-    log::info!(
-        "Choosing translation in frame {:?} with score {:?}:\n{:?}",
-        best_frame,
-        best_functional_score,
-        String::from_utf8(best_translation.clone())?
-    );
-    log::info!(
-        "With this best alignment, we trimmed the query sequence (AA) from position {} to {}",
-        best_alignment.xstart,
-        best_alignment.xend
-    );
-
-    log::info!(
-        "Alignment:\n{}",
-        best_alignment.pretty(
-            translate(&query[best_frame..], true, true, true)?.as_slice(),
-            ref_aa_slice,
-            120
-        )
-    );
-
-    // TODO: Allow outputting both
-    if output_type == "AA" {
-        log::info!(
-            "Writing trimmed query amino acid sequence to {:?}",
-            output_file
-        );
-        write_fasta(output_file, output_seq_name, &best_translation)?;
-    } else {
-        if output_type != "NT" {
-            log::error!("Unrecognized output type, outputting NT sequence")
-        }
-
-        let trim_nt_start = (best_alignment.xstart * 3) + best_frame;
-        let trim_nt_end = (best_alignment.xend * 3) + best_frame;
-        log::info!("Trimming NT from {:?} to {:?}", trim_nt_start, trim_nt_end);
-        let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
-        write_fasta(output_file, output_seq_name, &trimmed_nt)?;
-        log::info!("Outputting NT sequence to {:?}", output_file);
-    }
+    let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
+    write_fasta(output_file, output_seq_name, &trimmed_nt)?;
+    log::info!("Outputting NT sequence to {:?}", output_file);
 
     Ok(())
 }
