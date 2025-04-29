@@ -4,6 +4,7 @@ mod utils;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use crate::tools::trim_query_to_ref::AlignmentMode;
 use crate::tools::trim_seqs_to_query::OperatingMode;
 
 #[derive(clap::ValueEnum, Clone)]
@@ -86,6 +87,14 @@ enum Commands {
         /// What type of sequence to write, either AA or NT
         #[arg(short='t', long, default_value_t = String::from("AA"))]
         output_type: String,
+
+        /// What algorithm to use under the hood
+        #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Standard)]
+        alignment_mode: AlignmentMode,
+
+        /// When using partial, what k value to use
+        #[arg(short = 'k', long, default_value_t = 10)]
+        num_kmers: i32,
     },
     AlignAndTrim {
         /// The FASTA file containing the untrimmed nucleotide sequences
@@ -210,16 +219,19 @@ fn main() -> Result<()> {
             gap_open_penalty,
             gap_extension_penalty,
             output_type,
+            alignment_mode,
+            num_kmers
         } => {
             tools::trim_query_to_ref::run(
                 reference_file,
                 query_file,
                 output_file,
                 output_seq_name,
-                *strip_gaps,
                 output_type,
                 (*gap_open_penalty) * -1,
                 (*gap_extension_penalty) * -1,
+                *num_kmers,
+                *alignment_mode,
             )?;
         }
         Commands::AlignAndTrim {
