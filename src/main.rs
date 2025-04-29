@@ -21,6 +21,7 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+/// General purpose utities for the nf-codon-align pipeline, specifically relating to pre-processing data
 enum Commands {
     ReverseTranslate {
         /// Path to the aligned amino acid FASTA file
@@ -113,7 +114,7 @@ enum Commands {
 
         /// Operating mode
         #[clap(short='d', long, value_enum, default_value_t = OperatingMode::DoubleMatch)]
-        operating_mode: OperatingMode
+        operating_mode: OperatingMode,
     },
     Translate {
         /// The FASTA-formatted file containing the nucleotide sequences to translate
@@ -141,7 +142,7 @@ enum Commands {
         #[arg(short = 'd', long, default_value_t = false)]
         drop_incomplete_codons: bool,
     },
-    Collapse{
+    Collapse {
         /// The FASTA-formatted file containing the uncollapsed sequences
         #[arg(short = 'i', long)]
         input_file: PathBuf,
@@ -157,18 +158,16 @@ enum Commands {
         /// If set, sequences are collapsed purely on nucleotide/amino acid identity, not taking
         /// into account the gap patterns. By default, this is off, and two sequences with identical
         /// sequence information but different gap patterns are considered different.
-        #[arg(short='s', long, default_value_t = false)]
+        #[arg(short = 's', long, default_value_t = false)]
         strip_gaps: bool,
 
         /// The prefix to append to the new sequences when they are collapsed. By default, a unique
         /// integer will be assigned to each sequence, but we can add a string before it
         #[arg(short = 'p', long)]
-        sequence_prefix: String
-
-
+        sequence_prefix: String,
     },
 
-    Expand{
+    Expand {
         /// The FASTA-formatted file containing the collapsed sequences
         #[arg(short = 'i', long)]
         input_file: PathBuf,
@@ -181,9 +180,7 @@ enum Commands {
         #[arg(short = 'o', long)]
         output_file: PathBuf,
 
-
-
-    }
+    },
 }
 
 fn main() -> Result<()> {
@@ -222,7 +219,7 @@ fn main() -> Result<()> {
                 *strip_gaps,
                 output_type,
                 (*gap_open_penalty) * -1,
-                (*gap_extension_penalty) * -1
+                (*gap_extension_penalty) * -1,
             )?;
         }
         Commands::AlignAndTrim {
@@ -241,7 +238,7 @@ fn main() -> Result<()> {
                 *kmer_size,
                 output_type,
                 *max_dist,
-                operating_mode.clone()
+                operating_mode.clone(),
             )?;
         }
         Commands::Translate {
@@ -268,10 +265,9 @@ fn main() -> Result<()> {
         } => {
             tools::collapse::run(input_file, output_file, name_output_file, sequence_prefix, *strip_gaps)?;
         }
-        Commands::Expand {input_file, name_input_file, output_file} =>{
+        Commands::Expand { input_file, name_input_file, output_file } => {
             tools::expand::run(input_file, name_input_file, output_file)?;
         }
-
     }
     Ok(())
 }
