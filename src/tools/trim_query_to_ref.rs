@@ -17,7 +17,7 @@ use std::process::exit;
 use clap::ValueEnum;
 
 
-const VERSION: &str = "0.4.1";
+const VERSION: &str = "0.4.2";
 
 #[derive(ValueEnum, Copy, Clone)]
 pub enum AlignmentMode {
