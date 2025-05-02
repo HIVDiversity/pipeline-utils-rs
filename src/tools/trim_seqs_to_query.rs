@@ -12,7 +12,7 @@ use utils::translate;
 use crate::utils::fasta_utils::SequenceType;
 use crate::utils::translate::{translate, STOP_CHAR};
 
-const VERSION: &str = "0.2.6";
+const VERSION: &str = "0.3.0";
 
 #[derive(ValueEnum, Clone, Copy)]
 pub enum OperatingMode {
