@@ -156,21 +156,25 @@ pub fn translate(
                 continue;
             }
         }
+        let amino_acid;
+        if CODON_TABLE.contains_key(&nt_triplet) {
+            amino_acid = &CODON_TABLE[&nt_triplet][0];
+        } else if AMBIGUOUS_CODON_TABLE.contains_key(&nt_triplet) {
+            amino_acid = &AMBIGUOUS_CODON_TABLE[&nt_triplet][0];
+        } else if AMBIGUOUS_CODON_AND_AA_TABLE.contains_key(&nt_triplet) {
+            amino_acid = &AMBIGUOUS_CODON_AND_AA_TABLE[&nt_triplet][0];
+        } else {
+            log::warn!(
+                "Could not find a suitable character for the codon {:?}",
+                String::from_utf8(nt_triplet.to_vec())
+            );
+            amino_acid = &UNKNOWN_AA_CHAR;
+        }
 
-        let amino_acid = CODON_TABLE
-            .get(&nt_triplet)
-            .with_context(|| {
-                format!(
-                    "Couldn't find amino acid {:?}",
-                    String::from_utf8(nt_triplet.to_vec())
-                )
-            })
-            .unwrap_or(&&[UNKNOWN_AA_CHAR]);
-
-        if ignore_gap_codons & (amino_acid[0].eq(&GAP_CHAR)) {
+        if ignore_gap_codons & (amino_acid.eq(&GAP_CHAR)) {
             continue;
         } else {
-            amino_acids.push(amino_acid.clone()[0]);
+            amino_acids.push(amino_acid.clone());
         }
     }
 
@@ -187,7 +191,7 @@ mod tests {
     fn basic_test() {
         let dna_seq = "ATGTTATAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), false, false).unwrap();
+        let translation = translate(dna_seq.as_bytes(), false, false, false).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
@@ -196,7 +200,7 @@ mod tests {
     fn strip_gaps_true() {
         let dna_seq = "ATGTTA-TAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), true, false).unwrap();
+        let translation = translate(dna_seq.as_bytes(), true, false, false).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
@@ -204,8 +208,8 @@ mod tests {
     #[test]
     fn strip_gaps_false() {
         let dna_seq = "ATGTTA-TAA";
-        let expected_translation = "MLX?";
-        let translation = translate(dna_seq.as_bytes(), false, false).unwrap();
+        let expected_translation = "MLX~";
+        let translation = translate(dna_seq.as_bytes(), false, false, false).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
@@ -214,9 +218,22 @@ mod tests {
     fn ignore_gap_codons() {
         let dna_seq = "ATGTTA---TAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), false, true).unwrap();
+        let translation = translate(dna_seq.as_bytes(), false, true, false).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
+    }
+
+    #[test]
+    fn test_ambiguity() {
+        let test_cases = vec!["ATGTTACTNTAA", "NNNATGGGG", "ATGRAY---GTA"];
+        let expected_outputs = vec!["MLL*", "?MG", "MB-V"];
+
+        for (idx, test_case) in test_cases.iter().enumerate() {
+            let expected_translation = expected_outputs[idx].as_bytes();
+            let translation = translate(test_case.as_bytes(), false, false, false).unwrap();
+
+            assert_eq!(expected_translation, translation.as_slice());
+        }
     }
 
     // TODO: Add more tests lol
