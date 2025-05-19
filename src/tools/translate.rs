@@ -1,13 +1,11 @@
-use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
+use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
 use crate::utils::translate::translate;
 use anyhow::Result;
-use bio::io::fasta;
-use std::collections::HashMap;
+use colored::Colorize;
 use std::path::PathBuf;
-use std::process::exit;
 
 // TODO: Replace the NT in the sequence name with AA when translating....
-
+const VERSION: &str = "0.2.0";
 fn translate_fasta_file(
     sequences: &FastaRecords,
     strip_gaps: bool,
@@ -37,6 +35,13 @@ pub fn run(
     drop_incomplete_codons: bool,
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
+
+    log::info!(
+        "{}",
+        format!("This is {} version {}", "translate".italic(), VERSION)
+            .bold()
+            .bright_purple()
+    );
 
     log::info!("Reading sequences from {:?}", nt_filepath);
     let nucleotide_sequences = load_fasta(nt_filepath)?;
