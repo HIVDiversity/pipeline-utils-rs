@@ -78,6 +78,39 @@ static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
         b"---" => b"-",
 };
 
+// Thanks https://cran.r-project.org/web/packages/MLMOI/vignettes/StandardAmbiguityCodes.html
+static AMBIGUOUS_CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
+    b"GCN" =>  b"A",
+    b"TGY"=> b"C",
+    b"GAY" => b"D",
+    b"GAR" => b"E",
+    b"TTY" => b"F",
+    b"GGN" => b"G",
+    b"CAY" => b"H",
+    b"ATH" => b"I",
+    b"AAR" => b"K",
+    b"YTR" => b"L",
+    b"CTN" => b"L",
+    b"AAY" => b"N",
+    b"CCN" => b"P",
+    b"CAR" => b"Q",
+    b"CGN" => b"R",
+    b"MGR" => b"R",
+    b"TCN" => b"S",
+    b"AGY" => b"S",
+    b"ACN" => b"T",
+    b"GTN" => b"V",
+    b"TAY" => b"Y"
+
+
+};
+
+// https://en.wikipedia.org/wiki/International_Union_of_Pure_and_Applied_Chemistry#Amino_acid_and_nucleotide_base_codes
+static AMBIGUOUS_CODON_AND_AA_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
+    b"RAY" => b"B",
+    b"SAR" => b"Z"
+};
+
 pub fn translate(
     dna_seq: &[u8],
     strip_gaps: bool,
