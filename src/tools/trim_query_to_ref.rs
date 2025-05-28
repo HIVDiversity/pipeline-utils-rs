@@ -16,7 +16,7 @@ use std::iter::Iterator;
 use std::path::PathBuf;
 use std::process::exit;
 
-const VERSION: &str = "0.4.3";
+const VERSION: &str = "0.5.0";
 
 #[derive(ValueEnum, Copy, Clone)]
 pub enum AlignmentMode {
@@ -25,7 +25,7 @@ pub enum AlignmentMode {
     LocalCustom,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct AlignmentResult {
     alignment: Option<Alignment>,
     frame: usize,
@@ -129,10 +129,15 @@ fn get_alignment_in_three_frames(
                 possible_alignment.score
             );
 
-            results.push(result)
+            results.push(result.clone());
+            println!("{:?}", result.frame);
         }
     }
 
+    // Sort the values in ascending order, and then reverse them.
+    // We can use an unstable sort because we don't care if two results have the same score.
+    results.sort_unstable();
+    results.reverse();
     results
 }
 
@@ -143,11 +148,8 @@ fn get_best_translation(
     num_kmers: i32,
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
-    let mut results;
+    let results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode);
 
-    results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode);
-
-    results.sort();
     for (idx, result) in results.iter().enumerate() {
         if result.trimmed_query.starts_with(b"M") {
             if idx == 0 {
@@ -160,7 +162,7 @@ fn get_best_translation(
             }
 
             log::info!("Score: {:?}", result.score);
-            log::info!("Frame: {:?}", result.frame);
+            log::info!("Frame: {:?}", result.frame + 1);
 
             match &result.alignment {
                 None => {}
