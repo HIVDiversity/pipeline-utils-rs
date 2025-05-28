@@ -5,6 +5,7 @@ use bio::alignment::pairwise::*;
 use bio::alignment::sparse::{find_kmer_matches, lcskpp};
 use bio::io::fasta;
 use bio::io::fasta::Record;
+use clap::ValueEnum;
 use colored::Colorize;
 use nalgebra::Vector;
 use std::cell::RefCell;
@@ -14,8 +15,6 @@ use std::f64::MIN;
 use std::iter::Iterator;
 use std::path::PathBuf;
 use std::process::exit;
-use clap::ValueEnum;
-
 
 const VERSION: &str = "0.4.3";
 
@@ -76,18 +75,17 @@ fn write_fasta(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<(
     Ok(())
 }
 
-
-fn get_alignment_in_three_frames(ref_seq: &[u8],
-                                 query: &[u8],
-                                 scoring_function: Scoring<fn(u8, u8) -> i32>,
-                                 alignment_mode: AlignmentMode,
+fn get_alignment_in_three_frames(
+    ref_seq: &[u8],
+    query: &[u8],
+    scoring_function: Scoring<fn(u8, u8) -> i32>,
+    alignment_mode: AlignmentMode,
 ) -> Vec<AlignmentResult> {
     let ref_seq_aa = translate(ref_seq, true, true, true).unwrap();
 
     let mut aligner =
         Aligner::with_capacity_and_scoring(query.len() / 3, ref_seq_aa.len(), scoring_function);
     let mut results: Vec<AlignmentResult> = Vec::with_capacity(3);
-
 
     for frame in 0..3 {
         let query_aa = translate(&query[frame..], true, true, true)
@@ -102,8 +100,12 @@ fn get_alignment_in_three_frames(ref_seq: &[u8],
         let mut possible_alignments: Vec<Alignment> = Vec::with_capacity(2);
 
         match alignment_mode {
-            AlignmentMode::Local => { possible_alignments.push(aligner.local(query_aa.as_slice(), ref_seq_aa.as_slice())) }
-            AlignmentMode::Custom => { possible_alignments.push(aligner.custom(query_aa.as_slice(), ref_seq_aa.as_slice())) }
+            AlignmentMode::Local => {
+                possible_alignments.push(aligner.local(query_aa.as_slice(), ref_seq_aa.as_slice()))
+            }
+            AlignmentMode::Custom => {
+                possible_alignments.push(aligner.custom(query_aa.as_slice(), ref_seq_aa.as_slice()))
+            }
             AlignmentMode::LocalCustom => {
                 possible_alignments.push(aligner.local(query_aa.as_slice(), ref_seq_aa.as_slice()));
                 possible_alignments.push(aligner.custom(query_aa.as_slice(), ref_seq_aa.as_slice()))
@@ -117,14 +119,14 @@ fn get_alignment_in_three_frames(ref_seq: &[u8],
                 score: possible_alignment.score,
                 start: possible_alignment.xstart,
                 stop: possible_alignment.xend,
-                trimmed_query: query_aa[possible_alignment.xstart..possible_alignment.xend].to_vec(),
+                trimmed_query: query_aa[possible_alignment.xstart..possible_alignment.xend]
+                    .to_vec(),
             };
 
-
             log::info!(
-            "Alignment with query in frame {:?} gave a score of {:?}",
-            frame + 1,
-            possible_alignment.score
+                "Alignment with query in frame {:?} gave a score of {:?}",
+                frame + 1,
+                possible_alignment.score
             );
 
             results.push(result)
@@ -142,7 +144,6 @@ fn get_best_translation(
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
     let mut results;
-
 
     results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode);
 
@@ -226,16 +227,16 @@ pub fn run(
     let query_read = read_fasta(query_file)?;
     let query = query_read[0].as_slice();
 
-
     let scoring = Scoring::new(
         gap_open_penalty,
         gap_extend_penalty,
         bio::scores::blosum62 as fn(u8, u8) -> i32,
     )
-        .yclip(MIN_SCORE)
-        .xclip(-10);
+    .yclip(MIN_SCORE)
+    .xclip(-10);
 
-    let trimmed_alignment = get_best_translation(reference, query, scoring, num_kmers, alignment_mode);
+    let trimmed_alignment =
+        get_best_translation(reference, query, scoring, num_kmers, alignment_mode);
 
     let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
     let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
@@ -245,7 +246,6 @@ pub fn run(
     let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
     write_fasta(output_file, output_seq_name, &trimmed_nt)?;
     log::info!("Outputting NT sequence to {:?}", output_file);
-
 
     Ok(())
 }
