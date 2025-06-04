@@ -9,6 +9,7 @@ use bio::io::fasta::Record;
 use bio::utils::TextSlice;
 use clap::ValueEnum;
 use colored::Colorize;
+use log::LevelFilter;
 use nalgebra::Vector;
 use rayon::prelude::*;
 use std::cell::RefCell;
@@ -238,12 +239,16 @@ pub fn run(
     reference_file: &PathBuf,
     query_file: &PathBuf,
     output_file: &PathBuf,
-    output_seq_name: &str,
     gap_open_penalty: i32,
     gap_extend_penalty: i32,
     alignment_mode: AlignmentMode,
+    num_threads: i32,
+    log_level: LevelFilter,
 ) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
+    simple_logger::SimpleLogger::new()
+        .with_level(log_level)
+        .env()
+        .init()?;
 
     log::info!(
         "{}",
@@ -273,25 +278,6 @@ pub fn run(
         .par_iter()
         .map(|record: &Record| process_sequence(reference, record.clone(), scoring, alignment_mode))
         .collect();
-    // for query_sequence in queries {
-    //     let mut query_upper = query_sequence.seq().to_ascii_uppercase();
-    //     query_upper.retain(|&nt| nt != GAP_CHAR);
-    //     let query = query_upper.as_slice();
-    //     log::info!("Processing sequence {:?}", query_sequence.id());
-    //     let trimmed_alignment = get_best_translation(reference, query, scoring, alignment_mode);
-    //
-    //     let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
-    //     let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
-    //
-    //     log::info!(
-    //         "Trimming nucleotides from {:?} to {:?}",
-    //         trim_nt_start,
-    //         trim_nt_end
-    //     );
-    //     let trimmed_nt = &query[trim_nt_start..trim_nt_end];
-    //
-    //     results.push(Record::with_attrs(query_sequence.id(), None, trimmed_nt));
-    // }
 
     let mut writer = fasta::Writer::to_file(output_file)
         .with_context(|| format!("Error in opening the file {:?}", output_file))?;

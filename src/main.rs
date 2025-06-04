@@ -5,6 +5,7 @@ use crate::tools::trim_query_to_ref::AlignmentMode;
 use crate::tools::trim_seqs_to_query::OperatingMode;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use log::{Level, LevelFilter};
 use std::path::PathBuf;
 
 #[derive(clap::ValueEnum, Clone)]
@@ -65,14 +66,6 @@ enum Commands {
         #[arg(short = 'o', long)]
         output_file: PathBuf,
 
-        /// Output sequence name
-        #[arg(short = 'n', long)]
-        output_seq_name: String,
-
-        /// Strip gaps from both the reference and the query before translating and aligning
-        #[arg(short = 's', long, default_value_t = true)]
-        strip_gaps: bool,
-
         /// The gap open penalty. Do not use a negative number here - enter a positive number and it
         /// will be converted to a negative one. e.g 10 becomes -10
         #[arg(long, default_value_t = 5)]
@@ -86,6 +79,18 @@ enum Commands {
         /// What algorithm to use under the hood. Custom uses a semi-global approach, while local is a simple local alignment algorithm
         #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Local)]
         alignment_mode: AlignmentMode,
+
+        /// Number of threads to use. Set to 0 to use all threads.
+        #[arg(short = 't', long, default_value_t = 0)]
+        threads: i32,
+
+        /// Turns on verbose logging. Not recommended for multiple sequences.
+        #[arg(short = 'v', long, default_value_t = false)]
+        verbose: bool,
+
+        /// Turns off logging except for errors. Will override the verbose setting.
+        #[arg(short = 'q', long, default_value_t = false)]
+        quiet: bool,
     },
     AlignAndTrim {
         /// The FASTA file containing the untrimmed nucleotide sequences
@@ -200,20 +205,28 @@ fn main() -> Result<()> {
             reference_file,
             query_file,
             output_file,
-            output_seq_name,
-            strip_gaps,
             gap_open_penalty,
             gap_extension_penalty,
             alignment_mode,
+            threads,
+            verbose,
+            quiet,
         } => {
+            let log_level = match (verbose, quiet) {
+                (true, true) => LevelFilter::Error,
+                (false, true) => LevelFilter::Error,
+                (true, false) => LevelFilter::Debug,
+                (false, false) => LevelFilter::Info,
+            };
             tools::trim_query_to_ref::run(
                 reference_file,
                 query_file,
                 output_file,
-                output_seq_name,
                 (*gap_open_penalty) * -1,
                 (*gap_extension_penalty) * -1,
                 *alignment_mode,
+                *threads,
+                log_level,
             )?;
         }
         Commands::AlignAndTrim {
