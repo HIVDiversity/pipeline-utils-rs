@@ -59,7 +59,7 @@ enum Commands {
         reference_file: PathBuf,
 
         /// Path to the FASTA file containing the query seq. Note that only the first sequence in the file is used if multiple are present.
-        #[arg(short = 'q', long)]
+        #[arg(short = 'i', long)]
         query_file: PathBuf,
 
         /// Path to write the resulting trimmed sequence
