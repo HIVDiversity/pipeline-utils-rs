@@ -6,9 +6,11 @@ use bio::alignment::pairwise::*;
 use bio::alignment::sparse::{find_kmer_matches, lcskpp};
 use bio::io::fasta;
 use bio::io::fasta::Record;
+use bio::utils::TextSlice;
 use clap::ValueEnum;
 use colored::Colorize;
 use nalgebra::Vector;
+use rayon::prelude::*;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -206,6 +208,32 @@ fn get_best_translation(
     results[0].clone()
 }
 
+fn process_sequence(
+    reference: &[u8],
+    query_record: Record,
+    scoring_function: Scoring<fn(u8, u8) -> i32>,
+    alignment_mode: AlignmentMode,
+) -> Record {
+    let mut query_upper = query_record.seq().to_ascii_uppercase();
+    query_upper.retain(|&nt| nt != GAP_CHAR);
+    let query = query_upper.as_slice();
+    log::info!("Processing sequence {:?}", query_record.id());
+    let trimmed_alignment =
+        get_best_translation(reference, query, scoring_function, alignment_mode);
+
+    let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
+    let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
+
+    log::info!(
+        "Trimming nucleotides from {:?} to {:?}",
+        trim_nt_start,
+        trim_nt_end
+    );
+    let trimmed_nt = &query[trim_nt_start..trim_nt_end];
+
+    Record::with_attrs(query_record.id(), None, trimmed_nt)
+}
+
 pub fn run(
     reference_file: &PathBuf,
     query_file: &PathBuf,
@@ -241,26 +269,29 @@ pub fn run(
     )
     .yclip(MIN_SCORE)
     .xclip(-10);
-    let mut results: Vec<Record> = Vec::with_capacity(queries.len());
-    for query_sequence in queries {
-        let mut query_upper = query_sequence.seq().to_ascii_uppercase();
-        query_upper.retain(|&nt| nt != GAP_CHAR);
-        let query = query_upper.as_slice();
-        log::info!("Processing sequence {:?}", query_sequence.id());
-        let trimmed_alignment = get_best_translation(reference, query, scoring, alignment_mode);
-
-        let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
-        let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
-
-        log::info!(
-            "Trimming nucleotides from {:?} to {:?}",
-            trim_nt_start,
-            trim_nt_end
-        );
-        let trimmed_nt = &query[trim_nt_start..trim_nt_end];
-
-        results.push(Record::with_attrs(query_sequence.id(), None, trimmed_nt));
-    }
+    let results: Vec<Record> = queries
+        .par_iter()
+        .map(|record: &Record| process_sequence(reference, record.clone(), scoring, alignment_mode))
+        .collect();
+    // for query_sequence in queries {
+    //     let mut query_upper = query_sequence.seq().to_ascii_uppercase();
+    //     query_upper.retain(|&nt| nt != GAP_CHAR);
+    //     let query = query_upper.as_slice();
+    //     log::info!("Processing sequence {:?}", query_sequence.id());
+    //     let trimmed_alignment = get_best_translation(reference, query, scoring, alignment_mode);
+    //
+    //     let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
+    //     let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
+    //
+    //     log::info!(
+    //         "Trimming nucleotides from {:?} to {:?}",
+    //         trim_nt_start,
+    //         trim_nt_end
+    //     );
+    //     let trimmed_nt = &query[trim_nt_start..trim_nt_end];
+    //
+    //     results.push(Record::with_attrs(query_sequence.id(), None, trimmed_nt));
+    // }
 
     let mut writer = fasta::Writer::to_file(output_file)
         .with_context(|| format!("Error in opening the file {:?}", output_file))?;
