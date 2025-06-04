@@ -1,3 +1,4 @@
+use crate::utils::fasta_utils::load_fasta;
 use crate::utils::translate::translate;
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
@@ -55,6 +56,16 @@ impl Ord for AlignmentResult {
     }
 }
 
+fn read_fasta_into_vec(fasta_file: &PathBuf) -> Result<Vec<Record>> {
+    let reader = fasta::Reader::from_file(fasta_file)
+        .with_context(|| format!("Could not open file {:?}", fasta_file))?;
+    let records: Vec<Record> = reader
+        .records()
+        .map(|result| result.expect("Could not read a sequence from the file"))
+        .collect();
+
+    Ok(records)
+}
 // TODO: Move readfasta to the utils crate
 fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>> {
     let reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
@@ -222,9 +233,7 @@ pub fn run(
 
     let reference_read = read_fasta(reference_file)?;
     let reference = reference_read[0].as_slice();
-
-    let query_read = read_fasta(query_file)?;
-    let query = query_read[0].as_slice();
+    let queries = read_fasta_into_vec(query_file)?;
 
     let scoring = Scoring::new(
         gap_open_penalty,
@@ -234,16 +243,25 @@ pub fn run(
     .yclip(MIN_SCORE)
     .xclip(-10);
 
-    let trimmed_alignment = get_best_translation(reference, query, scoring, alignment_mode);
+    for query_sequence in queries {
+        let query_upper = query_sequence.seq().to_ascii_uppercase();
+        let query = query_upper.as_slice();
+        log::info!("Processing sequence {:?}", query_sequence.id());
+        let trimmed_alignment = get_best_translation(reference, query, scoring, alignment_mode);
 
-    let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
-    let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
+        let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
+        let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
 
-    log::info!("Trimming NT from {:?} to {:?}", trim_nt_start, trim_nt_end);
+        log::info!(
+            "Trimming nucleotides from {:?} to {:?}",
+            trim_nt_start,
+            trim_nt_end
+        );
+        let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
 
-    let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
-    write_fasta(output_file, output_seq_name, &trimmed_nt)?;
-    log::info!("Outputting NT sequence to {:?}", output_file);
+        log::info!("Writing nucleotide sequence to {:?}", output_file);
+        write_fasta(output_file, query_sequence.id(), &trimmed_nt)?;
+    }
 
     Ok(())
 }

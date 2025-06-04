@@ -6,9 +6,9 @@ use std::path::PathBuf;
 pub type FastaRecords = HashMap<String, Vec<u8>>;
 
 #[derive(Clone, Copy)]
-pub enum SequenceType{
+pub enum SequenceType {
     Nucleotide,
-    AminoAcid
+    AminoAcid,
 }
 pub fn write_fasta_sequences(
     output_file: &PathBuf,
@@ -24,7 +24,6 @@ pub fn write_fasta_sequences(
     Ok(())
 }
 
-// TODO: move to a public function
 pub fn load_fasta(file_path: &PathBuf) -> Result<FastaRecords> {
     let mut sequences: FastaRecords = FastaRecords::new();
     let reader = fasta::Reader::from_file(file_path).expect("Could not open file.");
