@@ -82,7 +82,7 @@ enum Commands {
 
         /// Number of threads to use. Set to 0 to use all threads.
         #[arg(short = 't', long, default_value_t = 0)]
-        threads: i32,
+        threads: usize,
 
         /// Turns on verbose logging. Not recommended for multiple sequences.
         #[arg(short = 'v', long, default_value_t = false)]

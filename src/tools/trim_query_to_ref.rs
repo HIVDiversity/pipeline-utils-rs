@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::f64::MIN;
+use std::fmt::format;
 use std::iter::Iterator;
 use std::path::PathBuf;
 use std::process::exit;
@@ -179,7 +180,7 @@ fn get_best_translation(
             match &result.alignment {
                 None => {}
                 Some(result_aln) => {
-                    log::info!(
+                    log::debug!(
                         "Alignment:\n{}",
                         result_aln.pretty(
                             translate(&query[result.frame..], true, true, true)
@@ -242,14 +243,23 @@ pub fn run(
     gap_open_penalty: i32,
     gap_extend_penalty: i32,
     alignment_mode: AlignmentMode,
-    num_threads: i32,
+    num_threads: usize,
     log_level: LevelFilter,
 ) -> Result<()> {
+    // Set up logging with the desired log level
     simple_logger::SimpleLogger::new()
         .with_level(log_level)
         .env()
         .init()?;
 
+    // Set up the threadpool with the desired number of threads. If num_threads == 0 then it uses
+    // all the threads
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build_global()
+        .context("Could not set up multithreading")?;
+
+    // Print information about this program
     log::info!(
         "{}",
         format!("This is pairwise-align-to-ref version {}", VERSION)
@@ -257,16 +267,19 @@ pub fn run(
             .bright_green()
     );
 
+    // Print information about the parameters being used
     log::info!(
         "Using a gap open penalty of {} and a gap extend penalty of {}",
         gap_open_penalty,
         gap_extend_penalty
     );
 
+    // Read and prepare the reference and queries
     let reference_read = read_fasta(reference_file)?;
     let reference = reference_read[0].as_slice();
     let queries = read_fasta_into_vec(query_file)?;
 
+    // Set up the scoring function
     let scoring = Scoring::new(
         gap_open_penalty,
         gap_extend_penalty,
@@ -274,11 +287,14 @@ pub fn run(
     )
     .yclip(MIN_SCORE)
     .xclip(-10);
+
+    // Run the main logic in parallel.
     let results: Vec<Record> = queries
         .par_iter()
         .map(|record: &Record| process_sequence(reference, record.clone(), scoring, alignment_mode))
         .collect();
 
+    // Write the results when everything has finished executing.
     let mut writer = fasta::Writer::to_file(output_file)
         .with_context(|| format!("Error in opening the file {:?}", output_file))?;
     for record in results {
