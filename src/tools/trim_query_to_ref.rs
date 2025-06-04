@@ -138,7 +138,7 @@ fn get_alignment_in_three_frames(
                     .to_vec(),
             };
 
-            log::info!(
+            log::debug!(
                 "Alignment with query in frame {:?} gave a score of {:?}",
                 frame + 1,
                 possible_alignment.score
@@ -158,6 +158,7 @@ fn get_alignment_in_three_frames(
 fn get_best_translation(
     ref_seq: &[u8],
     query: &[u8],
+    query_name: &str,
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
@@ -166,21 +167,21 @@ fn get_best_translation(
     for (idx, result) in results.iter().enumerate() {
         if result.trimmed_query.starts_with(b"M") {
             if idx == 0 {
-                log::info!("The best alignment started with an 'M':");
+                log::info!(target: query_name, "The best alignment started with an 'M'.");
             } else {
-                log::warn!(
-                    "The number {:?} best alignment starts with an 'M'. Returning this instead of the first best.",
-                    idx + 1
+                log::warn!(target: query_name,
+                    "The number {:?} best alignment (score: {:?}) starts with an 'M'. Returning this instead of the first best.",
+                    idx + 1,
+                    result.score
                 );
             }
 
-            log::info!("Score: {:?}", result.score);
-            log::info!("Frame: {:?}", result.frame + 1);
+            log::info!(target: query_name,"Frame: {:?} - Score: {:?}", result.frame + 1, result.score);
 
             match &result.alignment {
                 None => {}
                 Some(result_aln) => {
-                    log::debug!(
+                    log::debug!(target: query_name,
                         "Alignment:\n{}",
                         result_aln.pretty(
                             translate(&query[result.frame..], true, true, true)
@@ -195,7 +196,7 @@ fn get_best_translation(
 
             return result.clone();
         } else {
-            log::warn!(
+            log::warn!(target: query_name,
                 "Alignment number {:?} with score {:?} in frame {:?} did not start with 'M'",
                 idx + 1,
                 result.score,
@@ -204,7 +205,7 @@ fn get_best_translation(
         }
     }
 
-    log::warn!(
+    log::warn!(target: query_name,
         "None of the alignments started with an 'M'. Returning the one with the highest score"
     );
     results[0].clone()
@@ -216,17 +217,24 @@ fn process_sequence(
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
 ) -> Record {
+    log::info!(target: "Sequence Processor", "Processing sequence {:?}", query_record.id());
+
     let mut query_upper = query_record.seq().to_ascii_uppercase();
     query_upper.retain(|&nt| nt != GAP_CHAR);
     let query = query_upper.as_slice();
-    log::info!("Processing sequence {:?}", query_record.id());
-    let trimmed_alignment =
-        get_best_translation(reference, query, scoring_function, alignment_mode);
+
+    let trimmed_alignment = get_best_translation(
+        reference,
+        query,
+        query_record.id(),
+        scoring_function,
+        alignment_mode,
+    );
 
     let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
     let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
 
-    log::info!(
+    log::info!(target: query_record.id(),
         "Trimming nucleotides from {:?} to {:?}",
         trim_nt_start,
         trim_nt_end
