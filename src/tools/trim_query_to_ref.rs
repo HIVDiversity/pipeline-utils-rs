@@ -141,7 +141,6 @@ fn get_alignment_in_three_frames(
             );
 
             results.push(result.clone());
-            println!("{:?}", result.frame);
         }
     }
 
