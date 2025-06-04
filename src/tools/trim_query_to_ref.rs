@@ -145,7 +145,6 @@ fn get_best_translation(
     ref_seq: &[u8],
     query: &[u8],
     scoring_function: Scoring<fn(u8, u8) -> i32>,
-    num_kmers: i32,
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
     let results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode);
@@ -202,10 +201,8 @@ pub fn run(
     query_file: &PathBuf,
     output_file: &PathBuf,
     output_seq_name: &str,
-    output_type: &String,
     gap_open_penalty: i32,
     gap_extend_penalty: i32,
-    num_kmers: i32,
     alignment_mode: AlignmentMode,
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
@@ -237,8 +234,7 @@ pub fn run(
     .yclip(MIN_SCORE)
     .xclip(-10);
 
-    let trimmed_alignment =
-        get_best_translation(reference, query, scoring, num_kmers, alignment_mode);
+    let trimmed_alignment = get_best_translation(reference, query, scoring, alignment_mode);
 
     let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
     let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;

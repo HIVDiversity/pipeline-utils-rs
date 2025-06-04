@@ -1,11 +1,11 @@
 mod tools;
 mod utils;
 
+use crate::tools::trim_query_to_ref::AlignmentMode;
+use crate::tools::trim_seqs_to_query::OperatingMode;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use crate::tools::trim_query_to_ref::AlignmentMode;
-use crate::tools::trim_seqs_to_query::OperatingMode;
 
 #[derive(clap::ValueEnum, Clone)]
 enum SequenceOutputType {
@@ -36,7 +36,6 @@ enum Commands {
         /// Where to write the translated, aligned nt FASTA file
         #[arg(short, long)]
         output_file_path: PathBuf,
-
     },
     GetConsensus {
         /// Path to the input MSA FASTA file
@@ -84,17 +83,9 @@ enum Commands {
         #[arg(long, default_value_t = 1)]
         gap_extension_penalty: i32,
 
-        /// What type of sequence to write, either AA or NT
-        #[arg(short='t', long, default_value_t = String::from("AA"))]
-        output_type: String,
-
         /// What algorithm to use under the hood. Custom uses a semi-global approach, while local is a simple local alignment algorithm
         #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Local)]
         alignment_mode: AlignmentMode,
-
-        /// When using partial, what k value to use
-        #[arg(short = 'k', long, default_value_t = 10)]
-        num_kmers: i32,
     },
     AlignAndTrim {
         /// The FASTA file containing the untrimmed nucleotide sequences
@@ -188,7 +179,6 @@ enum Commands {
         /// The output file to write the un-collapsed sequences to
         #[arg(short = 'o', long)]
         output_file: PathBuf,
-
     },
 }
 
@@ -200,11 +190,7 @@ fn main() -> Result<()> {
             aa_filepath,
             nt_filepath,
             output_file_path,
-        } => tools::reverse_translate::run(
-            aa_filepath,
-            nt_filepath,
-            output_file_path,
-        )?,
+        } => tools::reverse_translate::run(aa_filepath, nt_filepath, output_file_path)?,
         Commands::GetConsensus {
             input_msa,
             output_file,
@@ -220,17 +206,15 @@ fn main() -> Result<()> {
             gap_extension_penalty,
             output_type,
             alignment_mode,
-            num_kmers
+            num_kmers,
         } => {
             tools::trim_query_to_ref::run(
                 reference_file,
                 query_file,
                 output_file,
                 output_seq_name,
-                output_type,
                 (*gap_open_penalty) * -1,
                 (*gap_extension_penalty) * -1,
-                *num_kmers,
                 *alignment_mode,
             )?;
         }
@@ -241,7 +225,7 @@ fn main() -> Result<()> {
             kmer_size,
             max_dist,
             output_type,
-            operating_mode
+            operating_mode,
         } => {
             tools::trim_seqs_to_query::run(
                 query_sequences,
@@ -273,11 +257,21 @@ fn main() -> Result<()> {
             output_file,
             name_output_file,
             strip_gaps,
-            sequence_prefix
+            sequence_prefix,
         } => {
-            tools::collapse::run(input_file, output_file, name_output_file, sequence_prefix, *strip_gaps)?;
+            tools::collapse::run(
+                input_file,
+                output_file,
+                name_output_file,
+                sequence_prefix,
+                *strip_gaps,
+            )?;
         }
-        Commands::Expand { input_file, name_input_file, output_file } => {
+        Commands::Expand {
+            input_file,
+            name_input_file,
+            output_file,
+        } => {
             tools::expand::run(input_file, name_input_file, output_file)?;
         }
     }
