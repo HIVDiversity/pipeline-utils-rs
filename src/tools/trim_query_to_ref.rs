@@ -16,7 +16,7 @@ use std::iter::Iterator;
 use std::path::PathBuf;
 use std::process::exit;
 
-const VERSION: &str = "0.5.0";
+const VERSION: &str = "0.6.0";
 
 #[derive(ValueEnum, Copy, Clone)]
 pub enum AlignmentMode {
