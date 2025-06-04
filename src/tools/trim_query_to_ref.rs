@@ -242,7 +242,7 @@ pub fn run(
     )
     .yclip(MIN_SCORE)
     .xclip(-10);
-
+    let mut results: Vec<Record> = Vec::with_capacity(queries.len());
     for query_sequence in queries {
         let query_upper = query_sequence.seq().to_ascii_uppercase();
         let query = query_upper.as_slice();
@@ -257,10 +257,21 @@ pub fn run(
             trim_nt_start,
             trim_nt_end
         );
-        let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
+        let trimmed_nt = &query[trim_nt_start..trim_nt_end];
 
-        log::info!("Writing nucleotide sequence to {:?}", output_file);
-        write_fasta(output_file, query_sequence.id(), &trimmed_nt)?;
+        results.push(Record::with_attrs(query_sequence.id(), None, trimmed_nt));
+    }
+
+    let mut writer = fasta::Writer::to_file(output_file)
+        .with_context(|| format!("Error in opening the file {:?}", output_file))?;
+    for record in results {
+        writer.write_record(&record).with_context(|| {
+            format!(
+                "Could not write the record {:?} to file {:?}",
+                record.id(),
+                output_file
+            )
+        })?;
     }
 
     Ok(())
