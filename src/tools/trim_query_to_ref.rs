@@ -1,5 +1,5 @@
 use crate::utils::fasta_utils::load_fasta;
-use crate::utils::translate::translate;
+use crate::utils::translate::{GAP_CHAR, translate};
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
 use bio::alignment::pairwise::*;
@@ -243,7 +243,8 @@ pub fn run(
     .xclip(-10);
     let mut results: Vec<Record> = Vec::with_capacity(queries.len());
     for query_sequence in queries {
-        let query_upper = query_sequence.seq().to_ascii_uppercase();
+        let mut query_upper = query_sequence.seq().to_ascii_uppercase();
+        query_upper.retain(|&nt| nt != GAP_CHAR);
         let query = query_upper.as_slice();
         log::info!("Processing sequence {:?}", query_sequence.id());
         let trimmed_alignment = get_best_translation(reference, query, scoring, alignment_mode);
