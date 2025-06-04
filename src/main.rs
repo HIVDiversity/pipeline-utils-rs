@@ -204,9 +204,7 @@ fn main() -> Result<()> {
             strip_gaps,
             gap_open_penalty,
             gap_extension_penalty,
-            output_type,
             alignment_mode,
-            num_kmers,
         } => {
             tools::trim_query_to_ref::run(
                 reference_file,
