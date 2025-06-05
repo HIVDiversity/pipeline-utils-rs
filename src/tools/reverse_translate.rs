@@ -1,4 +1,6 @@
-use anyhow::{anyhow, Context, Result};
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences};
+use crate::utils::translate::GAP_CHAR;
+use anyhow::{Context, Result, anyhow};
 use bio::io::fasta;
 use colored::Colorize;
 use log;
@@ -6,13 +8,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::PathBuf;
 use std::process::exit;
-use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences};
-use crate::utils::translate::GAP_CHAR;
 
 type FastaRecords = HashMap<String, Vec<u8>>;
 const VERSION: &str = "0.3.0";
-
-
 
 pub fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> {
     let gap_char = "-".as_bytes()[0];
@@ -27,7 +25,11 @@ pub fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> 
             let to_idx = current_nt_idx + 3;
 
             if to_idx > nt_seq.len() {
-                return Err(anyhow!("Failed to grab a codon from {} to {} on the nucleotide sequence. Index out of bounds.", current_nt_idx, to_idx));
+                return Err(anyhow!(
+                    "Failed to grab a codon from {} to {} on the nucleotide sequence. Index out of bounds.",
+                    current_nt_idx,
+                    to_idx
+                ));
             }
 
             new_nt_seq.extend_from_slice(&nt_seq[current_nt_idx..to_idx]);
@@ -42,29 +44,34 @@ fn process_sequences(
     aa_sequences: FastaRecords,
     nt_sequences: FastaRecords,
 ) -> Result<FastaRecords> {
-
     let mut missing_seqs = 0;
     let mut translation_errors = 0;
 
-    let mut reverse_translated_sequences: FastaRecords = FastaRecords::with_capacity(aa_sequences.capacity());
+    let mut reverse_translated_sequences: FastaRecords =
+        FastaRecords::with_capacity(aa_sequences.capacity());
 
     for (sequence_id, aa_sequence) in aa_sequences {
-
-        match nt_sequences.get(&sequence_id){
+        match nt_sequences.get(&sequence_id) {
             None => {
-                log::error!("The sequence with name {sequence_id} from the amino acid sequences could not be found in the nucleotide sequences");
+                log::error!(
+                    "The sequence with name {sequence_id} from the amino acid sequences could not be found in the nucleotide sequences"
+                );
                 missing_seqs += 1;
-            },
+            }
             Some(nt_sequence) => {
                 let mut degapped_nt_seq = nt_sequence.clone();
                 degapped_nt_seq.retain(|&base| base != GAP_CHAR);
 
-                match reverse_translate(&aa_sequence, &degapped_nt_seq){
+                match reverse_translate(&aa_sequence, &degapped_nt_seq) {
                     Err(e) => {
-                        log::error!("Error in reverse-translating the read {}.\n{:?}", sequence_id, e);
+                        log::error!(
+                            "Error in reverse-translating the read {}.\n{:?}",
+                            sequence_id,
+                            e
+                        );
                         translation_errors += 1;
-                    },
-                    Ok(reverse_translated_seq) =>{
+                    }
+                    Ok(reverse_translated_seq) => {
                         reverse_translated_sequences.insert(sequence_id, reverse_translated_seq);
                     }
                 }
@@ -72,8 +79,14 @@ fn process_sequences(
         }
     }
 
-    log::info!("We had {:?} sequences present in the AA file but missing from the NT file.", missing_seqs);
-    log::info!("We had {:?} reverse-translation errors.", translation_errors);
+    log::info!(
+        "We had {:?} sequences missing from the AA file that were present in the NT file.",
+        missing_seqs
+    );
+    log::info!(
+        "We had {:?} reverse-translation errors.",
+        translation_errors
+    );
 
     Ok(reverse_translated_sequences)
 }
@@ -86,11 +99,7 @@ fn load_name_file(name_mapping_path: &PathBuf) -> Result<HashMap<String, Vec<Str
     Ok(mappings)
 }
 
-pub fn run(
-    aa_filepath: &PathBuf,
-    nt_filepath: &PathBuf,
-    output_file_path: &PathBuf,
-) -> Result<()> {
+pub fn run(aa_filepath: &PathBuf, nt_filepath: &PathBuf, output_file_path: &PathBuf) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
     let mut amino_acid_sequences: FastaRecords = load_fasta(aa_filepath)?;
@@ -99,8 +108,12 @@ pub fn run(
     let rev_translated_seqs = process_sequences(amino_acid_sequences, nuc_sequences)
         .context("Error occurred while processing the sequences")?;
 
-    write_fasta_sequences(output_file_path, &rev_translated_seqs)
-        .with_context(|| format!("Error occurred while trying to write reverse translated sequences to {:?}", output_file_path))?;
+    write_fasta_sequences(output_file_path, &rev_translated_seqs).with_context(|| {
+        format!(
+            "Error occurred while trying to write reverse translated sequences to {:?}",
+            output_file_path
+        )
+    })?;
 
     Ok(())
 }
