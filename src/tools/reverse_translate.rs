@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::process::exit;
 
 type FastaRecords = HashMap<String, Vec<u8>>;
-const VERSION: &str = "0.3.0";
+const VERSION: &str = "0.3.1";
 
 pub fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> {
     let gap_char = "-".as_bytes()[0];
