@@ -1,6 +1,7 @@
 use crate::utils::fasta_utils::{FastaRecords, load_fasta};
 use anyhow::{Context, Result};
 use bio::io::fasta;
+use colored::Colorize;
 use serde_json::from_reader;
 use std::collections::HashMap;
 use std::fs::File;
@@ -41,6 +42,14 @@ fn uncollapse_and_write_sequences(
 }
 
 pub fn run(input_file: &PathBuf, name_mapping_file: &PathBuf, output_file: &PathBuf) -> Result<()> {
+    simple_logger::SimpleLogger::new().env().init()?;
+    log::info!(
+        "{}",
+        format!("This is {} version {}", "expand".italic(), VERSION)
+            .bold()
+            .bright_magenta()
+    );
+
     let collapsed_sequences = load_fasta(input_file)
         .with_context(|| format!("Failed to read sequences from {:?}", input_file))?;
 
