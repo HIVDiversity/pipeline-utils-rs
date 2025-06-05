@@ -1,16 +1,16 @@
 use crate::utils;
+use crate::utils::fasta_utils::SequenceType;
+use crate::utils::translate::{STOP_CHAR, translate};
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
 use bio::pattern_matching::myers::Myers;
+use clap::ValueEnum;
+use colored::Colorize;
 use fasta_utils::FastaRecords;
 use std::iter::Iterator;
 use std::path::PathBuf;
-use clap::ValueEnum;
-use colored::Colorize;
 use utils::fasta_utils;
 use utils::translate;
-use crate::utils::fasta_utils::SequenceType;
-use crate::utils::translate::{translate, STOP_CHAR};
 
 const VERSION: &str = "0.3.0";
 
@@ -37,10 +37,12 @@ fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option
 /// to determine the reading frame of the resulting coding sequence. Translate the nt sequence into
 /// amino acids. Then trim the sequence to the first available stop codon. If there is no stop
 /// codon, return the whole sequence.
-fn process_sequence_single_match(consensus_start_kmer: &[u8],
-                                 query: &[u8],
-                                 max_align_distance: u8,
-                                 output_type: SequenceType) -> Result<Vec<u8>> {
+fn process_sequence_single_match(
+    consensus_start_kmer: &[u8],
+    query: &[u8],
+    max_align_distance: u8,
+    output_type: SequenceType,
+) -> Result<Vec<u8>> {
     let start_aln = find_best_alignment(consensus_start_kmer, query, max_align_distance)
         .with_context(|| "No best alignment found.")?;
 
@@ -48,7 +50,9 @@ fn process_sequence_single_match(consensus_start_kmer: &[u8],
     let new_aa_seq = translate(new_nt_seq, false, false, true)?;
 
     // Find the first stop codon, or set it to the length of the string
-    let first_stop_codon = new_aa_seq.iter().position(|&amino_acid| amino_acid == STOP_CHAR)
+    let first_stop_codon = new_aa_seq
+        .iter()
+        .position(|&amino_acid| amino_acid == STOP_CHAR)
         .unwrap_or(new_aa_seq.len() - 1);
 
     match output_type {
@@ -57,9 +61,7 @@ fn process_sequence_single_match(consensus_start_kmer: &[u8],
             let nt_end_idx = ((first_stop_codon + 1) * 3);
             Ok(new_nt_seq[..nt_end_idx].to_vec())
         }
-        SequenceType::AminoAcid => {
-            Ok(new_aa_seq[..first_stop_codon].to_vec())
-        }
+        SequenceType::AminoAcid => Ok(new_aa_seq[..first_stop_codon].to_vec()),
     }
 }
 
@@ -73,27 +75,44 @@ fn process_sequence_double_match(
 ) -> Result<Vec<u8>> {
     let query_reversed = query.iter().rev().cloned().collect::<Vec<u8>>();
 
-    let Some(start_aln) = find_best_alignment(consensus_start_kmer, query, max_align_distance) else {
+    let Some(start_aln) = find_best_alignment(consensus_start_kmer, query, max_align_distance)
+    else {
         log::warn!("No best start alignment found for {:?}.", seq_name);
         return Ok(query.to_vec());
     };
 
     // Note - the end kmer is assumed to be reversed already!
-    let Some(end_aln) = find_best_alignment(consensus_end_kmer, query_reversed.as_slice(), max_align_distance)else {
+    let Some(end_aln) = find_best_alignment(
+        consensus_end_kmer,
+        query_reversed.as_slice(),
+        max_align_distance,
+    ) else {
         log::warn!("No best end alignment found for {:?}.", seq_name);
 
         // If we don't find the end alignment, we just return the protein trimmed from the start to the whole alignment
         // But we need to make sure trimming is viable
-        return Ok(query.get(start_aln.ystart..).unwrap_or_else(|| {
-            log::warn!("Trimming the sequence {:?} failed. Tried to trim from {:?} to the end", seq_name, start_aln.ystart);
-            return query;
-        }).to_vec());
+        return Ok(query
+            .get(start_aln.ystart..)
+            .unwrap_or_else(|| {
+                log::warn!(
+                    "Trimming the sequence {:?} failed. Tried to trim from {:?} to the end",
+                    seq_name,
+                    start_aln.ystart
+                );
+                return query;
+            })
+            .to_vec());
     };
 
-    log::info!("<{:?}> Found an alignment:\n - start k-mer from {} to {} (dist {})\n - end k-mer from {} to {} (dist {})",
+    log::info!(
+        "<{:?}> Found an alignment:\n - start k-mer from {} to {} (dist {})\n - end k-mer from {} to {} (dist {})",
         seq_name,
-        start_aln.ystart, start_aln.yend, start_aln.score,
-        end_aln.ystart, end_aln.yend, end_aln.score
+        start_aln.ystart,
+        start_aln.yend,
+        start_aln.score,
+        end_aln.ystart,
+        end_aln.yend,
+        end_aln.score
     );
 
     let start_trim = start_aln.ystart;
@@ -109,14 +128,17 @@ fn process_sequence_double_match(
     }
 
     let trimmed_query = query.get(start_trim..end_trim).unwrap_or_else(|| {
-        log::warn!("Trimming the sequence {:?} failed. Tried to trim from {:?} to {:?}", seq_name, start_trim, end_trim);
+        log::warn!(
+            "Trimming the sequence {:?} failed. Tried to trim from {:?} to {:?}",
+            seq_name,
+            start_trim,
+            end_trim
+        );
         query
     });
 
     match output_type {
-        SequenceType::Nucleotide => {
-            Ok(trimmed_query.to_vec())
-        }
+        SequenceType::Nucleotide => Ok(trimmed_query.to_vec()),
         SequenceType::AminoAcid => {
             let translated_query = translate::translate(trimmed_query, false, false, false)?;
             Ok(translated_query)
@@ -132,7 +154,6 @@ fn process_file(
     output_type: SequenceType,
     operating_mode: OperatingMode,
 ) -> Result<FastaRecords> {
-
     // No matter which mode we operate in, we need a start kmer
     let start_query = &consensus[0..kmer_size as usize];
     let query_sequences = fasta_utils::load_fasta(query_file)?;
@@ -159,7 +180,8 @@ fn process_file(
                         seq.as_slice(),
                         &seq_id,
                         max_align_distance,
-                        output_type, )?,
+                        output_type,
+                    )?,
                 );
             }
         }
@@ -171,7 +193,8 @@ fn process_file(
                         start_query,
                         seq.as_slice(),
                         max_align_distance,
-                        output_type, )?,
+                        output_type,
+                    )?,
                 );
             }
         }
@@ -220,7 +243,14 @@ pub fn run(
         output_type = SequenceType::Nucleotide;
     }
 
-    let output_seqs = process_file(input_file, consensus, kmer_size, max_align_distance as u8, output_type, mode)?;
+    let output_seqs = process_file(
+        input_file,
+        consensus,
+        kmer_size,
+        max_align_distance as u8,
+        output_type,
+        mode,
+    )?;
 
     fasta_utils::write_fasta_sequences(output_file, &output_seqs)?;
 
