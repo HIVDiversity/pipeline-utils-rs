@@ -1,13 +1,10 @@
 use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences};
 use crate::utils::translate::GAP_CHAR;
 use anyhow::{Context, Result, anyhow};
-use bio::io::fasta;
 use colored::Colorize;
 use log;
 use std::collections::HashMap;
-use std::fs::File;
 use std::path::PathBuf;
-use std::process::exit;
 
 type FastaRecords = HashMap<String, Vec<u8>>;
 const VERSION: &str = "0.3.1";
@@ -91,19 +88,21 @@ fn process_sequences(
     Ok(reverse_translated_sequences)
 }
 
-fn load_name_file(name_mapping_path: &PathBuf) -> Result<HashMap<String, Vec<String>>> {
-    let reader = std::io::BufReader::new(File::open(name_mapping_path)?);
-
-    let mappings: HashMap<String, Vec<String>> = serde_json::from_reader(reader)?;
-
-    Ok(mappings)
-}
-
 pub fn run(aa_filepath: &PathBuf, nt_filepath: &PathBuf, output_file_path: &PathBuf) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
+    log::info!(
+        "{}",
+        format!(
+            "This is {} version {}",
+            "reverse-translate".italic(),
+            VERSION
+        )
+        .bold()
+        .red()
+    );
 
-    let mut amino_acid_sequences: FastaRecords = load_fasta(aa_filepath)?;
-    let mut nuc_sequences: FastaRecords = load_fasta(nt_filepath)?;
+    let amino_acid_sequences: FastaRecords = load_fasta(aa_filepath)?;
+    let nuc_sequences: FastaRecords = load_fasta(nt_filepath)?;
 
     let rev_translated_seqs = process_sequences(amino_acid_sequences, nuc_sequences)
         .context("Error occurred while processing the sequences")?;
