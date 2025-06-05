@@ -2,19 +2,12 @@ use crate::utils::translate::translate;
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
 use bio::alignment::pairwise::*;
-use bio::alignment::sparse::{find_kmer_matches, lcskpp};
 use bio::io::fasta;
-use bio::io::fasta::Record;
 use clap::ValueEnum;
 use colored::Colorize;
-use nalgebra::Vector;
-use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::f64::MIN;
 use std::iter::Iterator;
 use std::path::PathBuf;
-use std::process::exit;
 
 const VERSION: &str = "0.5.0";
 
