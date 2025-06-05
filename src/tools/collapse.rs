@@ -1,9 +1,9 @@
-use crate::utils::fasta_utils::{load_fasta, FastaRecords};
+use crate::utils::fasta_utils::{FastaRecords, load_fasta};
 use crate::utils::translate::GAP_CHAR;
 use anyhow::{Context, Result};
 use bio::io::fasta;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 const VERSION: &str = "0.1.0";
 
@@ -36,8 +36,8 @@ fn write_sequences_and_name_mapping(
     name_mapping_output: &PathBuf,
     seq_prefix: &String,
 ) -> Result<()> {
-
-    let mut writer = fasta::Writer::to_file(output_file).with_context(|| format!("Trying to write to file {:?}", output_file))?;
+    let mut writer = fasta::Writer::to_file(output_file)
+        .with_context(|| format!("Trying to write to file {:?}", output_file))?;
     let mut name_mapping: HashMap<String, &Vec<String>> =
         HashMap::with_capacity(collapsed_seqs.capacity());
 
@@ -59,10 +59,7 @@ fn write_sequences_and_name_mapping(
         name_mapping.insert(seq_name.clone(), sequence_names);
     }
 
-    log::info!(
-        "Writing name mapping to {:?}",
-        name_mapping_output
-    );
+    log::info!("Writing name mapping to {:?}", name_mapping_output);
     std::fs::write(
         name_mapping_output,
         serde_json::to_string(&name_mapping).expect("Error serializing the name map."),
@@ -84,7 +81,12 @@ pub fn run(
     let sequences = load_fasta(input_file)?;
     let collapsed_seqs = collapse_sequences(sequences, strip_gaps)?;
 
-    write_sequences_and_name_mapping(collapsed_seqs, output_file, namefile_output, seq_name_prefix)?;
+    write_sequences_and_name_mapping(
+        collapsed_seqs,
+        output_file,
+        namefile_output,
+        seq_name_prefix,
+    )?;
 
     Ok(())
 }
