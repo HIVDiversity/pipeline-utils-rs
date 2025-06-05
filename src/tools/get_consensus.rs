@@ -1,5 +1,5 @@
 use crate::utils;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use bio::io::fasta;
 use colored::Colorize;
 use nalgebra::DMatrix;
@@ -12,7 +12,9 @@ const VERSION: &str = "0.2.1";
 fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     // Check if sequences are empty
     if sequences.is_empty() {
-        return Err(anyhow!("There are no sequences in the sequence vector passed to the sequence_to_matrix function."));
+        return Err(anyhow!(
+            "There are no sequences in the sequence vector passed to the sequence_to_matrix function."
+        ));
     }
 
     // Check that all sequences are the same length (this is an MSA)
@@ -20,8 +22,12 @@ fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     for seq in sequences {
         count = count + 1;
         if seq.len() != sequences[0].len() {
-            return Err(anyhow!("Not all sequences in the MSA have the same length. The length of the 1st seq is {} and the length of the {} seq is {}",
-            sequences[0].len(), count, seq.len()));
+            return Err(anyhow!(
+                "Not all sequences in the MSA have the same length. The length of the 1st seq is {} and the length of the {} seq is {}",
+                sequences[0].len(),
+                count,
+                seq.len()
+            ));
         }
     }
 
