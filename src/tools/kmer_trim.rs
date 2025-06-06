@@ -148,24 +148,24 @@ fn process_sequence_double_match(
 
 fn process_file(
     query_file: &PathBuf,
-    consensus: &[u8],
+    ref_seq: &[u8],
     kmer_size: i32,
     max_align_distance: u8,
     output_type: SequenceType,
     operating_mode: OperatingMode,
 ) -> Result<FastaRecords> {
     // No matter which mode we operate in, we need a start kmer
-    let start_query = &consensus[0..kmer_size as usize];
+    let start_query = &ref_seq[0..kmer_size as usize];
     let query_sequences = fasta_utils::load_fasta(query_file)?;
     let mut trimmed_sequences: FastaRecords = FastaRecords::new();
 
     match operating_mode {
         OperatingMode::DoubleMatch => {
             // If we're operating in double match mode, then we need both a start and end kmer
-            let final_index = consensus.len() as i32 - kmer_size;
+            let final_index = ref_seq.len() as i32 - kmer_size;
 
             // The end query also needs to be reversed
-            let end_query = consensus[final_index as usize..]
+            let end_query = ref_seq[final_index as usize..]
                 .iter()
                 .rev()
                 .cloned()
@@ -208,8 +208,8 @@ fn process_file(
 /// Given a set of unaligned, untranslated sequences S, and a query sequence Q, we will trim
 /// all the sequences in S to the same region as covered by Q.
 pub fn run(
-    input_file: &PathBuf,
-    consensus_file: &PathBuf,
+    query_seq_file: &PathBuf,
+    ref_seq_file: &PathBuf,
     output_file: &PathBuf,
     kmer_size: i32,
     output_type_str: &String,
@@ -225,8 +225,8 @@ pub fn run(
             .bright_green()
     );
 
-    let consensus_seq = fasta_utils::load_fasta(consensus_file)?;
-    let consensus = consensus_seq
+    let ref_seq_record = fasta_utils::load_fasta(ref_seq_file)?;
+    let ref_seq = ref_seq_record
         .values()
         .next()
         .with_context(|| "Consensus file contained no sequences.")?
@@ -244,8 +244,8 @@ pub fn run(
     }
 
     let output_seqs = process_file(
-        input_file,
-        consensus,
+        query_seq_file,
+        ref_seq,
         kmer_size,
         max_align_distance as u8,
         output_type,

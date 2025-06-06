@@ -1,8 +1,8 @@
 mod tools;
 mod utils;
 
-use crate::tools::pairwise_align_trim::AlignmentMode;
 use crate::tools::kmer_trim::OperatingMode;
+use crate::tools::pairwise_align_trim::AlignmentMode;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use log::{Level, LevelFilter};
@@ -65,7 +65,7 @@ enum Commands {
         #[arg(short = 'r', long)]
         reference_file: PathBuf,
 
-        /// Path to the FASTA file containing the query seq. Note that only the first sequence in the file is used if multiple are present.
+        /// Path to the FASTA file containing the query seq. Note that all the sequences in the file will be processed.
         #[arg(short = 'i', long)]
         query_file: PathBuf,
 
@@ -79,7 +79,7 @@ enum Commands {
         gap_open_penalty: i32,
 
         /// The gap extension penalty. Do not use a negative number here - enter a positive number and it
-        /// will be converted to a negative one. e.g 10 becomes -10
+        /// will be converted to a negative one. e.g 1 becomes -1
         #[arg(long, default_value_t = 1)]
         gap_extension_penalty: i32,
 
@@ -102,12 +102,12 @@ enum Commands {
     /// Trim sequences to a reference sequence using a k-mer matching approach.
     KmerTrim {
         /// The FASTA file containing the untrimmed nucleotide sequences
-        #[arg(short = 'q', long)]
-        query_sequences: PathBuf,
+        #[arg(short = 'i', long)]
+        query_seq_file: PathBuf,
 
         /// The file with the NT consensus sequence.
-        #[arg(short = 'c', long)]
-        consensus_sequence: PathBuf,
+        #[arg(short = 'r', long)]
+        ref_seq_file: PathBuf,
 
         /// The output file
         #[arg(short = 'o', long)]
@@ -254,8 +254,8 @@ fn main() -> Result<()> {
             )?;
         }
         Commands::KmerTrim {
-            query_sequences,
-            consensus_sequence,
+            query_seq_file,
+            ref_seq_file,
             output_file,
             kmer_size,
             max_dist,
@@ -263,8 +263,8 @@ fn main() -> Result<()> {
             operating_mode,
         } => {
             tools::kmer_trim::run(
-                query_sequences,
-                consensus_sequence,
+                query_seq_file,
+                ref_seq_file,
                 output_file,
                 *kmer_size,
                 output_type,
