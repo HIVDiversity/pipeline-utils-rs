@@ -1,8 +1,8 @@
 mod tools;
 mod utils;
 
-use crate::tools::trim_query_to_ref::AlignmentMode;
-use crate::tools::trim_seqs_to_query::OperatingMode;
+use crate::tools::pairwise_align_trim::AlignmentMode;
+use crate::tools::kmer_trim::OperatingMode;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use log::{Level, LevelFilter};
@@ -242,7 +242,7 @@ fn main() -> Result<()> {
                 (true, false) => LevelFilter::Debug,
                 (false, false) => LevelFilter::Info,
             };
-            tools::trim_query_to_ref::run(
+            tools::pairwise_align_trim::run(
                 reference_file,
                 query_file,
                 output_file,
@@ -262,7 +262,7 @@ fn main() -> Result<()> {
             output_type,
             operating_mode,
         } => {
-            tools::trim_seqs_to_query::run(
+            tools::kmer_trim::run(
                 query_sequences,
                 consensus_sequence,
                 output_file,
