@@ -1,25 +1,13 @@
-use crate::utils::fasta_utils::load_fasta;
-use crate::utils::translate::{GAP_CHAR, translate};
+use crate::utils::translate::translate;
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
 use bio::alignment::pairwise::*;
-use bio::alignment::sparse::{find_kmer_matches, lcskpp};
 use bio::io::fasta;
-use bio::io::fasta::Record;
-use bio::utils::TextSlice;
 use clap::ValueEnum;
 use colored::Colorize;
-use log::LevelFilter;
-use nalgebra::Vector;
-use rayon::prelude::*;
-use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::f64::MIN;
-use std::fmt::format;
 use std::iter::Iterator;
 use std::path::PathBuf;
-use std::process::exit;
 
 const VERSION: &str = "0.6.0";
 
@@ -158,7 +146,6 @@ fn get_alignment_in_three_frames(
 fn get_best_translation(
     ref_seq: &[u8],
     query: &[u8],
-    query_name: &str,
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
