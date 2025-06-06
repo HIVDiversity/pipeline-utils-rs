@@ -1,6 +1,6 @@
 pub mod collapse;
 pub mod expand;
-mod extract_seq_from_gb;
+pub mod extract_seq_from_gb;
 pub mod get_consensus;
 pub mod reverse_translate;
 pub mod translate;
