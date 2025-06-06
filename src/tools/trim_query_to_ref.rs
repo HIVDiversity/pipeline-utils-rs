@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use std::iter::Iterator;
 use std::path::PathBuf;
 
-const VERSION: &str = "0.5.0";
+const VERSION: &str = "0.6.0";
 
 #[derive(ValueEnum, Copy, Clone)]
 pub enum AlignmentMode {
@@ -48,6 +48,16 @@ impl Ord for AlignmentResult {
     }
 }
 
+fn read_fasta_into_vec(fasta_file: &PathBuf) -> Result<Vec<Record>> {
+    let reader = fasta::Reader::from_file(fasta_file)
+        .with_context(|| format!("Could not open file {:?}", fasta_file))?;
+    let records: Vec<Record> = reader
+        .records()
+        .map(|result| result.expect("Could not read a sequence from the file"))
+        .collect();
+
+    Ok(records)
+}
 // TODO: Move readfasta to the utils crate
 fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>> {
     let reader = fasta::Reader::from_file(fasta_file).expect("Could not open provided FASTA file.");
@@ -116,14 +126,13 @@ fn get_alignment_in_three_frames(
                     .to_vec(),
             };
 
-            log::info!(
+            log::debug!(
                 "Alignment with query in frame {:?} gave a score of {:?}",
                 frame + 1,
                 possible_alignment.score
             );
 
             results.push(result.clone());
-            println!("{:?}", result.frame);
         }
     }
 
@@ -138,7 +147,6 @@ fn get_best_translation(
     ref_seq: &[u8],
     query: &[u8],
     scoring_function: Scoring<fn(u8, u8) -> i32>,
-    num_kmers: i32,
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
     let results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode);
@@ -146,21 +154,21 @@ fn get_best_translation(
     for (idx, result) in results.iter().enumerate() {
         if result.trimmed_query.starts_with(b"M") {
             if idx == 0 {
-                log::info!("The best alignment started with an 'M':");
+                log::info!(target: query_name, "The best alignment started with an 'M'.");
             } else {
-                log::warn!(
-                    "The number {:?} best alignment starts with an 'M'. Returning this instead of the first best.",
-                    idx + 1
+                log::warn!(target: query_name,
+                    "The number {:?} best alignment (score: {:?}) starts with an 'M'. Returning this instead of the first best.",
+                    idx + 1,
+                    result.score
                 );
             }
 
-            log::info!("Score: {:?}", result.score);
-            log::info!("Frame: {:?}", result.frame + 1);
+            log::info!(target: query_name,"Frame: {:?} - Score: {:?}", result.frame + 1, result.score);
 
             match &result.alignment {
                 None => {}
                 Some(result_aln) => {
-                    log::info!(
+                    log::debug!(target: query_name,
                         "Alignment:\n{}",
                         result_aln.pretty(
                             translate(&query[result.frame..], true, true, true)
@@ -175,7 +183,7 @@ fn get_best_translation(
 
             return result.clone();
         } else {
-            log::warn!(
+            log::warn!(target: query_name,
                 "Alignment number {:?} with score {:?} in frame {:?} did not start with 'M'",
                 idx + 1,
                 result.score,
@@ -184,25 +192,69 @@ fn get_best_translation(
         }
     }
 
-    log::warn!(
+    log::warn!(target: query_name,
         "None of the alignments started with an 'M'. Returning the one with the highest score"
     );
     results[0].clone()
+}
+
+fn process_sequence(
+    reference: &[u8],
+    query_record: Record,
+    scoring_function: Scoring<fn(u8, u8) -> i32>,
+    alignment_mode: AlignmentMode,
+) -> Record {
+    log::info!(target: "Sequence Processor", "Processing sequence {:?}", query_record.id());
+
+    let mut query_upper = query_record.seq().to_ascii_uppercase();
+    query_upper.retain(|&nt| nt != GAP_CHAR);
+    let query = query_upper.as_slice();
+
+    let trimmed_alignment = get_best_translation(
+        reference,
+        query,
+        query_record.id(),
+        scoring_function,
+        alignment_mode,
+    );
+
+    let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
+    let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
+
+    log::info!(target: query_record.id(),
+        "Trimming nucleotides from {:?} to {:?}",
+        trim_nt_start,
+        trim_nt_end
+    );
+    let trimmed_nt = &query[trim_nt_start..trim_nt_end];
+
+    Record::with_attrs(query_record.id(), None, trimmed_nt)
 }
 
 pub fn run(
     reference_file: &PathBuf,
     query_file: &PathBuf,
     output_file: &PathBuf,
-    output_seq_name: &str,
-    output_type: &String,
     gap_open_penalty: i32,
     gap_extend_penalty: i32,
-    num_kmers: i32,
     alignment_mode: AlignmentMode,
+    num_threads: usize,
+    log_level: LevelFilter,
 ) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
+    // Set up logging with the desired log level
+    simple_logger::SimpleLogger::new()
+        .with_level(log_level)
+        .env()
+        .init()?;
 
+    // Set up the threadpool with the desired number of threads. If num_threads == 0 then it uses
+    // all the threads
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build_global()
+        .context("Could not set up multithreading")?;
+
+    // Print information about this program
     log::info!(
         "{}",
         format!("This is pairwise-align-to-ref version {}", VERSION)
@@ -210,18 +262,19 @@ pub fn run(
             .bright_green()
     );
 
+    // Print information about the parameters being used
     log::info!(
         "Using a gap open penalty of {} and a gap extend penalty of {}",
         gap_open_penalty,
         gap_extend_penalty
     );
 
+    // Read and prepare the reference and queries
     let reference_read = read_fasta(reference_file)?;
     let reference = reference_read[0].as_slice();
+    let queries = read_fasta_into_vec(query_file)?;
 
-    let query_read = read_fasta(query_file)?;
-    let query = query_read[0].as_slice();
-
+    // Set up the scoring function
     let scoring = Scoring::new(
         gap_open_penalty,
         gap_extend_penalty,
@@ -230,17 +283,24 @@ pub fn run(
     .yclip(MIN_SCORE)
     .xclip(-10);
 
-    let trimmed_alignment =
-        get_best_translation(reference, query, scoring, num_kmers, alignment_mode);
+    // Run the main logic in parallel.
+    let results: Vec<Record> = queries
+        .par_iter()
+        .map(|record: &Record| process_sequence(reference, record.clone(), scoring, alignment_mode))
+        .collect();
 
-    let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
-    let trim_nt_end = (trimmed_alignment.stop * 3) + trimmed_alignment.frame;
-
-    log::info!("Trimming NT from {:?} to {:?}", trim_nt_start, trim_nt_end);
-
-    let trimmed_nt = query[trim_nt_start..trim_nt_end].to_vec();
-    write_fasta(output_file, output_seq_name, &trimmed_nt)?;
-    log::info!("Outputting NT sequence to {:?}", output_file);
+    // Write the results when everything has finished executing.
+    let mut writer = fasta::Writer::to_file(output_file)
+        .with_context(|| format!("Error in opening the file {:?}", output_file))?;
+    for record in results {
+        writer.write_record(&record).with_context(|| {
+            format!(
+                "Could not write the record {:?} to file {:?}",
+                record.id(),
+                output_file
+            )
+        })?;
+    }
 
     Ok(())
 }

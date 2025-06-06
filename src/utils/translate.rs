@@ -133,7 +133,7 @@ pub fn translate(
 
         if codon.len() != 3 {
             if !drop_incomplete_codons {
-                log::warn!(
+                log::debug!(
                     "The codon {:?} had a length of {} so we're adding a {:?}",
                     String::from_utf8(codon.to_vec())?,
                     codon.len(),
@@ -164,7 +164,7 @@ pub fn translate(
         } else if AMBIGUOUS_CODON_AND_AA_TABLE.contains_key(&nt_triplet) {
             amino_acid = &AMBIGUOUS_CODON_AND_AA_TABLE[&nt_triplet][0];
         } else {
-            log::warn!(
+            log::debug!(
                 "Could not find a suitable character for the codon {:?}",
                 String::from_utf8(nt_triplet.to_vec())
             );
