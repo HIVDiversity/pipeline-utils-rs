@@ -185,6 +185,20 @@ enum Commands {
         #[arg(short = 'o', long)]
         output_file: PathBuf,
     },
+
+    GbExtract {
+        /// The input Genbank File
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+
+        /// The output file to write the sequence to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+
+        /// The name of the sequence to extract from the genbank file
+        #[arg(short = 'n', long)]
+        seq_name: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -284,6 +298,13 @@ fn main() -> Result<()> {
             output_file,
         } => {
             tools::expand::run(input_file, name_input_file, output_file)?;
+        }
+        Commands::GbExtract {
+            input_file,
+            output_file,
+            seq_name,
+        } => {
+            tools::extract_seq_from_gb::run(input_file, output_file, seq_name)?;
         }
     }
     Ok(())
