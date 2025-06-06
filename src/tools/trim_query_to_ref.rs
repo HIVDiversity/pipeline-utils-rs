@@ -1,10 +1,13 @@
-use crate::utils::translate::translate;
+use crate::utils::translate::{GAP_CHAR, translate};
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
 use bio::alignment::pairwise::*;
 use bio::io::fasta;
+use bio::io::fasta::Record;
 use clap::ValueEnum;
 use colored::Colorize;
+use log::LevelFilter;
+use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::iter::Iterator;
 use std::path::PathBuf;
@@ -146,6 +149,7 @@ fn get_alignment_in_three_frames(
 fn get_best_translation(
     ref_seq: &[u8],
     query: &[u8],
+    query_name: &str,
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
 ) -> AlignmentResult {
