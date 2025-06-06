@@ -25,6 +25,9 @@ struct Cli {
 #[derive(Subcommand)]
 /// General purpose utities for the nf-codon-align pipeline, specifically relating to pre-processing data
 enum Commands {
+    /// Reverse Translate a multiple sequence alignment.
+    /// Converts an amino acid alignment back into nucleotides, using the unaligned nucleotide
+    /// sequences as a guide. Ensures the original codons are used as the codons in the output.
     ReverseTranslate {
         /// Path to the aligned amino acid FASTA file
         #[arg(short = 'i', long)]
@@ -38,6 +41,9 @@ enum Commands {
         #[arg(short, long)]
         output_file_path: PathBuf,
     },
+    /// Get the consensus sequence of a Multiple Sequence Alignment.
+    /// Produces a single sequence representing all the sequences in the input file, where each
+    /// nucleotide in the output sequence is the most common nucleotide at that position.
     GetConsensus {
         /// Path to the input MSA FASTA file
         #[arg(short = 'i', long)]
@@ -51,9 +57,10 @@ enum Commands {
         #[arg(short = 'n', long)]
         consensus_name: String,
     },
+    /// Align and trim sequences to a reference sequence.
     /// Given a long consensus sequence containing a shorter reference sequence, extract the shorter
     /// reference sequence by aligning the ref seq to the cons seq and trimming.
-    AlignConsensus {
+    AlignTrim {
         /// Path to the FASTA file containing the reference seq. Note that only the first sequence in the file is used if multiple are present.
         #[arg(short = 'r', long)]
         reference_file: PathBuf,
@@ -92,7 +99,8 @@ enum Commands {
         #[arg(short = 'q', long, default_value_t = false)]
         quiet: bool,
     },
-    AlignAndTrim {
+    /// Trim sequences to a reference sequence using a k-mer matching approach.
+    KmerTrim {
         /// The FASTA file containing the untrimmed nucleotide sequences
         #[arg(short = 'q', long)]
         query_sequences: PathBuf,
@@ -121,6 +129,7 @@ enum Commands {
         #[clap(short='d', long, value_enum, default_value_t = OperatingMode::DoubleMatch)]
         operating_mode: OperatingMode,
     },
+    /// Translate sequences from nucleotides into amino acids.
     Translate {
         /// The FASTA-formatted file containing the nucleotide sequences to translate
         #[arg(short = 'i', long)]
@@ -147,6 +156,7 @@ enum Commands {
         #[arg(short = 'd', long, default_value_t = false)]
         drop_incomplete_codons: bool,
     },
+    /// Remove repeated sequences in a file. Resulting file contains only unique sequences.
     Collapse {
         /// The FASTA-formatted file containing the uncollapsed sequences
         #[arg(short = 'i', long)]
@@ -171,7 +181,7 @@ enum Commands {
         #[arg(short = 'p', long)]
         sequence_prefix: String,
     },
-
+    /// Re-introduce the duplicate sequences that were removed from the collapse function.
     Expand {
         /// The FASTA-formatted file containing the collapsed sequences
         #[arg(short = 'i', long)]
@@ -185,7 +195,7 @@ enum Commands {
         #[arg(short = 'o', long)]
         output_file: PathBuf,
     },
-
+    /// Extract a feature from a genbank file and write it to a FASTA file.
     GbExtract {
         /// The input Genbank File
         #[arg(short = 'i', long)]
@@ -215,7 +225,7 @@ fn main() -> Result<()> {
             output_file,
             consensus_name,
         } => tools::get_consensus::run(input_msa, output_file, consensus_name)?,
-        Commands::AlignConsensus {
+        Commands::AlignTrim {
             reference_file,
             query_file,
             output_file,
@@ -243,7 +253,7 @@ fn main() -> Result<()> {
                 log_level,
             )?;
         }
-        Commands::AlignAndTrim {
+        Commands::KmerTrim {
             query_sequences,
             consensus_sequence,
             output_file,
