@@ -731,7 +731,6 @@ dependencies = [
  "nalgebra",
  "phf",
  "rayon",
- "serde",
  "serde_json",
  "simple_logger",
 ]

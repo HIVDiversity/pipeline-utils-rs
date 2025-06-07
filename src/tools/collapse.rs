@@ -2,6 +2,7 @@ use crate::utils::fasta_utils::{FastaRecords, load_fasta};
 use crate::utils::translate::GAP_CHAR;
 use anyhow::{Context, Result};
 use bio::io::fasta;
+use colored::Colorize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -76,6 +77,13 @@ pub fn run(
     strip_gaps: bool,
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
+
+    log::info!(
+        "{}",
+        format!("This is 'collapse' version {}", VERSION)
+            .bold()
+            .bright_yellow()
+    );
 
     log::info!("Reading input file {:?}", input_file);
     let sequences = load_fasta(input_file)?;
