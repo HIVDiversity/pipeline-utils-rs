@@ -28,5 +28,6 @@ docker: build-docker push-docker
 release tag:
     git add .
     git commit
+    git tag {{ tag }}
     git push
     git push --tags
