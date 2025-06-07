@@ -6,23 +6,29 @@ use serde_json::from_reader;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::PathBuf;
-const VERSION: &str = "0.1.1";
+const VERSION: &str = "0.2.0";
 type NewToOldNameMapping = HashMap<String, Vec<String>>;
 
 fn uncollapse_and_write_sequences(
     collapsed_seqs: FastaRecords,
     name_mapping: NewToOldNameMapping,
     output_file: &PathBuf,
+    include_missing_seqs: bool,
 ) -> Result<()> {
     let mut writer = fasta::Writer::to_file(output_file)
         .with_context(|| format!("Trying to write to file {:?}", output_file))?;
 
     for (collapsed_seq_name, sequence) in collapsed_seqs {
         match name_mapping.get(&collapsed_seq_name) {
-            None => log::warn!(
-                "The sequence with new name {:?} did not have a corresponding entry in the name mapping",
-                &collapsed_seq_name
-            ),
+            None => {
+                log::warn!(
+                    "The sequence with new name {:?} did not have a corresponding entry in the name mapping",
+                    &collapsed_seq_name
+                );
+                if include_missing_seqs {
+                    writer.write(&collapsed_seq_name, None, &sequence)?;
+                }
+            }
             Some(old_seq_names) => {
                 for old_seq_name in old_seq_names {
                     writer
@@ -41,7 +47,12 @@ fn uncollapse_and_write_sequences(
     Ok(())
 }
 
-pub fn run(input_file: &PathBuf, name_mapping_file: &PathBuf, output_file: &PathBuf) -> Result<()> {
+pub fn run(
+    input_file: &PathBuf,
+    name_mapping_file: &PathBuf,
+    output_file: &PathBuf,
+    include_missing_seqs: bool,
+) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
     log::info!(
         "{}",
@@ -56,7 +67,12 @@ pub fn run(input_file: &PathBuf, name_mapping_file: &PathBuf, output_file: &Path
     let name_mapping: NewToOldNameMapping = from_reader(File::open(name_mapping_file)?)
         .with_context(|| format!("Failed to read name mapping from {:?}", name_mapping_file))?;
 
-    uncollapse_and_write_sequences(collapsed_sequences, name_mapping, output_file)?;
+    uncollapse_and_write_sequences(
+        collapsed_sequences,
+        name_mapping,
+        output_file,
+        include_missing_seqs,
+    )?;
 
     Ok(())
 }

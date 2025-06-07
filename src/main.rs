@@ -194,6 +194,11 @@ enum Commands {
         /// The output file to write the un-collapsed sequences to
         #[arg(short = 'o', long)]
         output_file: PathBuf,
+
+        /// If this flag is set, when a sequence in the input file isn't present in the name file
+        /// it will still be included in the output file
+        #[arg(short = 'm', long, default_value_t = false)]
+        include_missing: bool,
     },
     /// Extract a feature from a genbank file and write it to a FASTA file.
     GbExtract {
@@ -306,8 +311,9 @@ fn main() -> Result<()> {
             input_file,
             name_input_file,
             output_file,
+            include_missing,
         } => {
-            tools::expand::run(input_file, name_input_file, output_file)?;
+            tools::expand::run(input_file, name_input_file, output_file, *include_missing)?;
         }
         Commands::GbExtract {
             input_file,
