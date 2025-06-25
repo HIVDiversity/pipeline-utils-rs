@@ -87,6 +87,10 @@ enum Commands {
         #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Local)]
         alignment_mode: AlignmentMode,
 
+        /// Character to use for a stop codon in the translation.
+        #[clap(long, default_value_t = utils::translate::DEFAULT_STOP_CHAR as char)]
+        aa_stop_char: char,
+
         /// Number of threads to use. Set to 0 to use all threads.
         #[arg(short = 't', long, default_value_t = 0)]
         threads: usize,
@@ -128,6 +132,10 @@ enum Commands {
         /// Operating mode
         #[clap(short='d', long, value_enum, default_value_t = OperatingMode::DoubleMatch)]
         operating_mode: OperatingMode,
+
+        /// Character to use for a stop codon in the translation.
+        #[clap(long, default_value_t = utils::translate::DEFAULT_STOP_CHAR as char)]
+        aa_stop_char: char,
     },
     /// Translate sequences from nucleotides into amino acids.
     Translate {
@@ -155,6 +163,10 @@ enum Commands {
         /// with a special character.
         #[arg(short = 'd', long, default_value_t = false)]
         drop_incomplete_codons: bool,
+
+        /// Character to use for a stop codon in the translation.
+        #[clap(long, default_value_t = utils::translate::DEFAULT_STOP_CHAR as char)]
+        aa_stop_char: char,
     },
     /// Remove repeated sequences in a file. Resulting file contains only unique sequences.
     Collapse {
@@ -237,6 +249,7 @@ fn main() -> Result<()> {
             gap_open_penalty,
             gap_extension_penalty,
             alignment_mode,
+            aa_stop_char,
             threads,
             verbose,
             quiet,
@@ -254,6 +267,7 @@ fn main() -> Result<()> {
                 (*gap_open_penalty) * -1,
                 (*gap_extension_penalty) * -1,
                 *alignment_mode,
+                Some(*aa_stop_char),
                 *threads,
                 log_level,
             )?;
@@ -266,6 +280,7 @@ fn main() -> Result<()> {
             max_dist,
             output_type,
             operating_mode,
+            aa_stop_char,
         } => {
             tools::kmer_trim::run(
                 query_seq_file,
@@ -275,6 +290,7 @@ fn main() -> Result<()> {
                 output_type,
                 *max_dist,
                 operating_mode.clone(),
+                Some(*aa_stop_char),
             )?;
         }
         Commands::Translate {
@@ -283,6 +299,7 @@ fn main() -> Result<()> {
             strip_gaps,
             ignore_gap_codons,
             drop_incomplete_codons,
+            aa_stop_char,
         } => {
             tools::translate::run(
                 input_file,
@@ -290,6 +307,7 @@ fn main() -> Result<()> {
                 *strip_gaps,
                 *ignore_gap_codons,
                 *drop_incomplete_codons,
+                Some(*aa_stop_char),
             )?;
         }
         Commands::Collapse {

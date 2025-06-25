@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use phf::phf_map;
+use phf::{phf_map, phf_set};
 use std::convert::TryInto;
 use std::io::repeat;
 
@@ -8,7 +8,7 @@ const FRAMESHIFT_CHAR: u8 = b"X"[0];
 const UNKNOWN_AA_CHAR: u8 = b"X"[0];
 const INCOMPLETE_AA_CHAR: u8 = b"~"[0];
 
-pub const STOP_CHAR: u8 = b"*"[0];
+pub const DEFAULT_STOP_CHAR: u8 = b"*"[0];
 
 static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
         b"TTT" => b"F",
@@ -72,11 +72,10 @@ static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
         b"GGC" => b"G",
         b"GGA" => b"G",
         b"GGG" => b"G",
-        b"TAA" => b"*",
-        b"TAG" => b"*",
-        b"TGA" => b"*",
         b"---" => b"-",
 };
+
+static STOP_CODONS: phf::Set<&[u8; 3]> = phf_set! {b"TAA", b"TAG", b"TGA"};
 
 // Thanks https://cran.r-project.org/web/packages/MLMOI/vignettes/StandardAmbiguityCodes.html
 static AMBIGUOUS_CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
@@ -116,7 +115,13 @@ pub fn translate(
     strip_gaps: bool,
     ignore_gap_codons: bool,
     drop_incomplete_codons: bool,
+    alternate_stop_codon: Option<char>,
 ) -> Result<Vec<u8>> {
+    let stop_codon_aa_char: u8 = match alternate_stop_codon {
+        None => DEFAULT_STOP_CHAR,
+        Some(character) => character as u8,
+    };
+
     let mut new_seq = dna_seq.to_vec();
     if strip_gaps {
         new_seq = new_seq
@@ -157,12 +162,15 @@ pub fn translate(
             }
         }
         let amino_acid;
+
         if CODON_TABLE.contains_key(&nt_triplet) {
             amino_acid = &CODON_TABLE[&nt_triplet][0];
         } else if AMBIGUOUS_CODON_TABLE.contains_key(&nt_triplet) {
             amino_acid = &AMBIGUOUS_CODON_TABLE[&nt_triplet][0];
         } else if AMBIGUOUS_CODON_AND_AA_TABLE.contains_key(&nt_triplet) {
             amino_acid = &AMBIGUOUS_CODON_AND_AA_TABLE[&nt_triplet][0];
+        } else if STOP_CODONS.contains(&nt_triplet) {
+            amino_acid = &stop_codon_aa_char;
         } else {
             log::debug!(
                 "Could not find a suitable character for the codon {:?}",
@@ -191,7 +199,7 @@ mod tests {
     fn basic_test() {
         let dna_seq = "ATGTTATAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), false, false, false).unwrap();
+        let translation = translate(dna_seq.as_bytes(), false, false, false, None).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
@@ -200,7 +208,7 @@ mod tests {
     fn strip_gaps_true() {
         let dna_seq = "ATGTTA-TAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), true, false, false).unwrap();
+        let translation = translate(dna_seq.as_bytes(), true, false, false, None).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
@@ -209,7 +217,7 @@ mod tests {
     fn strip_gaps_false() {
         let dna_seq = "ATGTTA-TAA";
         let expected_translation = "MLX~";
-        let translation = translate(dna_seq.as_bytes(), false, false, false).unwrap();
+        let translation = translate(dna_seq.as_bytes(), false, false, false, None).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
@@ -218,7 +226,7 @@ mod tests {
     fn ignore_gap_codons() {
         let dna_seq = "ATGTTA---TAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), false, true, false).unwrap();
+        let translation = translate(dna_seq.as_bytes(), false, true, false, None).unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
@@ -230,10 +238,22 @@ mod tests {
 
         for (idx, test_case) in test_cases.iter().enumerate() {
             let expected_translation = expected_outputs[idx].as_bytes();
-            let translation = translate(test_case.as_bytes(), false, false, false).unwrap();
+            let translation = translate(test_case.as_bytes(), false, false, false, None).unwrap();
 
             assert_eq!(expected_translation, translation.as_slice());
         }
+    }
+
+    #[test]
+    fn test_alternate_stop_codon_char() {
+        let translation_standard =
+            translate("ATGTTACTNTAA".as_bytes(), false, false, false, None).unwrap();
+
+        let translation_custom =
+            translate("ATGTTACTNTAA".as_bytes(), false, false, false, Some('X')).unwrap();
+
+        assert_eq!("MLL*".as_bytes(), translation_standard.as_slice());
+        assert_eq!("MLLX".as_bytes(), translation_custom.as_slice());
     }
 
     // TODO: Add more tests lol

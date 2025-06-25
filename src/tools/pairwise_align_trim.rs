@@ -86,15 +86,16 @@ fn get_alignment_in_three_frames(
     query: &[u8],
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
+    aa_stop_char: Option<char>,
 ) -> Vec<AlignmentResult> {
-    let ref_seq_aa = translate(ref_seq, true, true, true).unwrap();
+    let ref_seq_aa = translate(ref_seq, true, true, true, aa_stop_char).unwrap();
 
     let mut aligner =
         Aligner::with_capacity_and_scoring(query.len() / 3, ref_seq_aa.len(), scoring_function);
     let mut results: Vec<AlignmentResult> = Vec::with_capacity(3);
 
     for frame in 0..3 {
-        let query_aa = translate(&query[frame..], true, true, true)
+        let query_aa = translate(&query[frame..], true, true, true, aa_stop_char)
             .with_context(|| {
                 format!(
                     "Could not translate the query sequence in frame {:?}",
@@ -152,8 +153,15 @@ fn get_best_translation(
     query_name: &str,
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
+    aa_stop_char: Option<char>,
 ) -> AlignmentResult {
-    let results = get_alignment_in_three_frames(ref_seq, query, scoring_function, alignment_mode);
+    let results = get_alignment_in_three_frames(
+        ref_seq,
+        query,
+        scoring_function,
+        alignment_mode,
+        aa_stop_char,
+    );
 
     for (idx, result) in results.iter().enumerate() {
         if result.trimmed_query.starts_with(b"M") {
@@ -175,10 +183,10 @@ fn get_best_translation(
                     log::debug!(target: query_name,
                         "Alignment:\n{}",
                         result_aln.pretty(
-                            translate(&query[result.frame..], true, true, true)
+                            translate(&query[result.frame..], true, true, true, aa_stop_char)
                                 .unwrap()
                                 .as_slice(),
-                            translate(ref_seq, true, true, true).unwrap().as_slice(),
+                            translate(ref_seq, true, true, true, aa_stop_char).unwrap().as_slice(),
                             120
                         )
                     );
@@ -207,6 +215,7 @@ fn process_sequence(
     query_record: Record,
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
+    aa_stop_char: Option<char>,
 ) -> Record {
     log::info!(target: "Sequence Processor", "Processing sequence {:?}", query_record.id());
 
@@ -220,6 +229,7 @@ fn process_sequence(
         query_record.id(),
         scoring_function,
         alignment_mode,
+        aa_stop_char,
     );
 
     let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
@@ -242,6 +252,7 @@ pub fn run(
     gap_open_penalty: i32,
     gap_extend_penalty: i32,
     alignment_mode: AlignmentMode,
+    aa_stop_char: Option<char>,
     num_threads: usize,
     log_level: LevelFilter,
 ) -> Result<()> {
@@ -290,7 +301,15 @@ pub fn run(
     // Run the main logic in parallel.
     let results: Vec<Record> = queries
         .par_iter()
-        .map(|record: &Record| process_sequence(reference, record.clone(), scoring, alignment_mode))
+        .map(|record: &Record| {
+            process_sequence(
+                reference,
+                record.clone(),
+                scoring,
+                alignment_mode,
+                aa_stop_char,
+            )
+        })
         .collect();
 
     // Write the results when everything has finished executing.

@@ -11,6 +11,7 @@ fn translate_fasta_file(
     strip_gaps: bool,
     ignore_gap_codons: bool,
     drop_incomplete_codons: bool,
+    aa_stop_char: Option<char>,
 ) -> Result<FastaRecords> {
     let mut translated_sequences: FastaRecords = FastaRecords::with_capacity(sequences.capacity());
 
@@ -20,6 +21,7 @@ fn translate_fasta_file(
             strip_gaps,
             ignore_gap_codons,
             drop_incomplete_codons,
+            aa_stop_char,
         )?;
         translated_sequences.insert(sequence.0.to_string(), translated_seq);
     }
@@ -33,6 +35,7 @@ pub fn run(
     strip_gaps: bool,
     ignore_gap_codons: bool,
     drop_incomplete_codons: bool,
+    aa_stop_char: Option<char>,
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
@@ -52,6 +55,7 @@ pub fn run(
         strip_gaps,
         ignore_gap_codons,
         drop_incomplete_codons,
+        aa_stop_char,
     )?;
     log::info!("Done. Writing sequences to {:?}", output_filepath);
 

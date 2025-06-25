@@ -1,6 +1,6 @@
 use crate::utils;
 use crate::utils::fasta_utils::SequenceType;
-use crate::utils::translate::{STOP_CHAR, translate};
+use crate::utils::translate::{DEFAULT_STOP_CHAR, translate};
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
 use bio::pattern_matching::myers::Myers;
@@ -42,17 +42,18 @@ fn process_sequence_single_match(
     query: &[u8],
     max_align_distance: u8,
     output_type: SequenceType,
+    aa_stop_char: Option<char>,
 ) -> Result<Vec<u8>> {
     let start_aln = find_best_alignment(consensus_start_kmer, query, max_align_distance)
         .with_context(|| "No best alignment found.")?;
 
     let new_nt_seq = &query[start_aln.ystart..].to_owned();
-    let new_aa_seq = translate(new_nt_seq, false, false, true)?;
+    let new_aa_seq = translate(new_nt_seq, false, false, true, aa_stop_char)?;
 
     // Find the first stop codon, or set it to the length of the string
     let first_stop_codon = new_aa_seq
         .iter()
-        .position(|&amino_acid| amino_acid == STOP_CHAR)
+        .position(|&amino_acid| amino_acid == DEFAULT_STOP_CHAR)
         .unwrap_or(new_aa_seq.len() - 1);
 
     match output_type {
@@ -72,6 +73,7 @@ fn process_sequence_double_match(
     seq_name: &String,
     max_align_distance: u8,
     output_type: SequenceType,
+    aa_stop_char: Option<char>,
 ) -> Result<Vec<u8>> {
     let query_reversed = query.iter().rev().cloned().collect::<Vec<u8>>();
 
@@ -140,7 +142,8 @@ fn process_sequence_double_match(
     match output_type {
         SequenceType::Nucleotide => Ok(trimmed_query.to_vec()),
         SequenceType::AminoAcid => {
-            let translated_query = translate::translate(trimmed_query, false, false, false)?;
+            let translated_query =
+                translate::translate(trimmed_query, false, false, false, aa_stop_char)?;
             Ok(translated_query)
         }
     }
@@ -153,6 +156,7 @@ fn process_file(
     max_align_distance: u8,
     output_type: SequenceType,
     operating_mode: OperatingMode,
+    aa_stop_char: Option<char>,
 ) -> Result<FastaRecords> {
     // No matter which mode we operate in, we need a start kmer
     let start_query = &ref_seq[0..kmer_size as usize];
@@ -181,6 +185,7 @@ fn process_file(
                         &seq_id,
                         max_align_distance,
                         output_type,
+                        aa_stop_char,
                     )?,
                 );
             }
@@ -194,6 +199,7 @@ fn process_file(
                         seq.as_slice(),
                         max_align_distance,
                         output_type,
+                        aa_stop_char,
                     )?,
                 );
             }
@@ -215,6 +221,7 @@ pub fn run(
     output_type_str: &String,
     max_align_distance: i32,
     mode: OperatingMode,
+    aa_stop_char: Option<char>,
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
@@ -250,6 +257,7 @@ pub fn run(
         max_align_distance as u8,
         output_type,
         mode,
+        aa_stop_char,
     )?;
 
     fasta_utils::write_fasta_sequences(output_file, &output_seqs)?;
