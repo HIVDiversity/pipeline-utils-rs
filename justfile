@@ -29,7 +29,10 @@ build:
     cargo build
 
 run *args="":
-    cargo run {{ args }}
+    cargo run -- {{ args }}
 
 test-align-trim *args:
     just run align-trim -r new_test_data/align-trim/ref.fasta -i new_test_data/align-trim/query.fasta -o new_test_data/align-trim/output.fasta {{ args }}
+
+test-kmer-trim *args:
+    just run kmer-trim -r new_test_data/kmer-trim/ref.fasta -i new_test_data/kmer-trim/query.fasta -o new_test_data/kmer-trim/output.fasta {{ args }}
