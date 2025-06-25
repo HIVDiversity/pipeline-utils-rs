@@ -25,9 +25,11 @@ run-docker-it tag=latest-tag:
 [group('docker')]
 docker: build-docker push-docker
 
-release tag:
-    git add .
-    git commit
-    git tag {{ tag }}
-    git push
-    git push --tags
+build:
+    cargo build
+
+run *args="":
+    cargo run {{ args }}
+
+test-align-trim *args:
+    just run align-trim -r new_test_data/align-trim/ref.fasta -i new_test_data/align-trim/query.fasta -o new_test_data/align-trim/output.fasta {{ args }}
