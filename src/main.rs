@@ -4,6 +4,7 @@ mod utils;
 use crate::tools::kmer_trim::OperatingMode;
 use crate::tools::pairwise_align_trim::AlignmentMode;
 use anyhow::Result;
+use clap::builder::styling;
 use clap::{Parser, Subcommand};
 use log::{Level, LevelFilter};
 use std::path::PathBuf;
@@ -14,9 +15,16 @@ enum SequenceOutputType {
     NT,
 }
 
+const STYLES: styling::Styles = styling::Styles::styled()
+    .header(styling::AnsiColor::Green.on_default().bold())
+    .usage(styling::AnsiColor::Green.on_default().bold())
+    .literal(styling::AnsiColor::Blue.on_default().bold())
+    .placeholder(styling::AnsiColor::Cyan.on_default());
+
 #[derive(Parser)]
 #[command(name = "ap-utils")]
 #[command(about = "A collection of CLI utilities for the alignment pipeline")]
+#[command(styles = STYLES)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
