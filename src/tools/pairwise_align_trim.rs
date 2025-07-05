@@ -12,7 +12,7 @@ use std::cmp::Ordering;
 use std::iter::Iterator;
 use std::path::PathBuf;
 
-const VERSION: &str = "0.6.0";
+const VERSION: &str = "1.0.0";
 
 #[derive(ValueEnum, Copy, Clone)]
 pub enum AlignmentMode {

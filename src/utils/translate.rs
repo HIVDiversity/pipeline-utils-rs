@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use phf::{phf_map, phf_set};
 use std::convert::TryInto;
+use std::fmt;
 use std::io::repeat;
 #[derive(Clone, Copy)]
 pub struct TranslationOptions {
@@ -8,7 +9,7 @@ pub struct TranslationOptions {
     pub stop_aa: u8,
     pub incomplete_aa: u8,
     pub frameshift_aa: u8,
-    pub reading_frame: u8,
+    pub reading_frame: usize,
     pub allow_ambiguities: bool,
     pub strip_gaps: bool,
     pub ignore_gap_codons: bool,
@@ -28,6 +29,29 @@ impl Default for TranslationOptions {
             ignore_gap_codons: false,
             drop_incomplete_codons: true,
         }
+    }
+}
+
+impl fmt::Display for TranslationOptions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Translation Options: {{\n\t")?;
+        write!(f, "unknown_aa_char: {:?}\n\t", self.unknown_aa as char)?;
+        write!(
+            f,
+            "frameshift_aa_char: {:?}\n\t",
+            self.frameshift_aa as char
+        )?;
+        write!(f, "stop_aa_char: {:?}\n\t", self.stop_aa as char)?;
+        write!(f, "reading_frame: {:?}\n\t", self.reading_frame)?;
+        write!(f, "allow_ambiguities: {:?}\n\t", self.allow_ambiguities)?;
+        write!(f, "strip_gaps: {:?}\n\t", self.strip_gaps)?;
+        write!(f, "ignore_gap_codons: {:?}\n\t", self.ignore_gap_codons)?;
+        write!(
+            f,
+            "drop_incomplete_codons: {:?}\n",
+            self.drop_incomplete_codons
+        )?;
+        write!(f, "}}")
     }
 }
 
@@ -139,7 +163,7 @@ static AMBIGUOUS_CODON_AND_AA_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
 };
 
 pub fn translate(dna_seq: &[u8], options: &TranslationOptions) -> Result<Vec<u8>> {
-    let mut new_seq = dna_seq.to_vec();
+    let mut new_seq = dna_seq[options.reading_frame..].to_vec();
     if options.strip_gaps {
         new_seq = new_seq
             .iter()
@@ -187,7 +211,7 @@ pub fn translate(dna_seq: &[u8], options: &TranslationOptions) -> Result<Vec<u8>
         {
             amino_acid = &AMBIGUOUS_CODON_AND_AA_TABLE[&nt_triplet][0];
         } else if STOP_CODONS.contains(&nt_triplet) {
-            amino_acid = &options.frameshift_aa;
+            amino_acid = &options.stop_aa;
         } else {
             log::debug!(
                 "Could not find a suitable character for the codon {:?}",

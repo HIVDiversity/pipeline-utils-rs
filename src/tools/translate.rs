@@ -4,7 +4,7 @@ use anyhow::Result;
 use colored::Colorize;
 use std::path::PathBuf;
 
-const VERSION: &str = "0.3.0";
+const VERSION: &str = "1.0.0";
 
 pub fn run(
     nt_filepath: &PathBuf,
@@ -18,6 +18,10 @@ pub fn run(
         format!("This is {} version {}", "translate".italic(), VERSION)
             .bold()
             .bright_purple()
+    );
+    log::info!(
+        "Command was run with the following options:\n{}",
+        translation_options
     );
 
     log::info!("Reading sequences from {:?}", nt_filepath);

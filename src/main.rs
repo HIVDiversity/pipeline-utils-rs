@@ -43,7 +43,7 @@ struct TranslateCliOptions {
     #[arg(long, default_value_t = TranslationOptions::default().frameshift_aa as char)]
     frameshift_aa: char,
     #[arg(long, default_value_t = TranslationOptions::default().reading_frame)]
-    reading_frame: u8,
+    reading_frame: usize,
     #[arg(long, default_value_t = TranslationOptions::default().allow_ambiguities)]
     allow_ambiguities: bool,
     #[arg(long, default_value_t = TranslationOptions::default().strip_gaps)]

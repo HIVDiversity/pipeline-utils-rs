@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use utils::fasta_utils;
 use utils::translate;
 
-const VERSION: &str = "0.3.0";
+const VERSION: &str = "1.0.0";
 
 #[derive(ValueEnum, Clone, Copy)]
 pub enum OperatingMode {
