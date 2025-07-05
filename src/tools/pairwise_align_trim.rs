@@ -1,4 +1,4 @@
-use crate::utils::translate::{GAP_CHAR, translate};
+use crate::utils::translate::{GAP_CHAR, TranslationOptions, translate};
 use anyhow::{Context, Result};
 use bio::alignment::Alignment;
 use bio::alignment::pairwise::*;
@@ -86,16 +86,16 @@ fn get_alignment_in_three_frames(
     query: &[u8],
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
-    aa_stop_char: Option<char>,
+    translation_options: &TranslationOptions,
 ) -> Vec<AlignmentResult> {
-    let ref_seq_aa = translate(ref_seq, true, true, true, aa_stop_char).unwrap();
+    let ref_seq_aa = translate(ref_seq, translation_options).unwrap();
 
     let mut aligner =
         Aligner::with_capacity_and_scoring(query.len() / 3, ref_seq_aa.len(), scoring_function);
     let mut results: Vec<AlignmentResult> = Vec::with_capacity(3);
 
     for frame in 0..3 {
-        let query_aa = translate(&query[frame..], true, true, true, aa_stop_char)
+        let query_aa = translate(&query[frame..], translation_options)
             .with_context(|| {
                 format!(
                     "Could not translate the query sequence in frame {:?}",
@@ -153,14 +153,14 @@ fn get_best_translation(
     query_name: &str,
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
-    aa_stop_char: Option<char>,
+    translation_options: &TranslationOptions,
 ) -> AlignmentResult {
     let results = get_alignment_in_three_frames(
         ref_seq,
         query,
         scoring_function,
         alignment_mode,
-        aa_stop_char,
+        translation_options,
     );
 
     for (idx, result) in results.iter().enumerate() {
@@ -183,10 +183,10 @@ fn get_best_translation(
                     log::debug!(target: query_name,
                         "Alignment:\n{}",
                         result_aln.pretty(
-                            translate(&query[result.frame..], true, true, true, aa_stop_char)
+                            translate(&query[result.frame..], translation_options)
                                 .unwrap()
                                 .as_slice(),
-                            translate(ref_seq, true, true, true, aa_stop_char).unwrap().as_slice(),
+                            translate(ref_seq, translation_options).unwrap().as_slice(),
                             120
                         )
                     );
@@ -215,7 +215,7 @@ fn process_sequence(
     query_record: Record,
     scoring_function: Scoring<fn(u8, u8) -> i32>,
     alignment_mode: AlignmentMode,
-    aa_stop_char: Option<char>,
+    translation_options: &TranslationOptions,
 ) -> Record {
     log::info!(target: "Sequence Processor", "Processing sequence {:?}", query_record.id());
 
@@ -229,7 +229,7 @@ fn process_sequence(
         query_record.id(),
         scoring_function,
         alignment_mode,
-        aa_stop_char,
+        translation_options,
     );
 
     let trim_nt_start = (trimmed_alignment.start * 3) + trimmed_alignment.frame;
@@ -252,7 +252,7 @@ pub fn run(
     gap_open_penalty: i32,
     gap_extend_penalty: i32,
     alignment_mode: AlignmentMode,
-    aa_stop_char: Option<char>,
+    translation_options: &TranslationOptions,
     num_threads: usize,
     log_level: LevelFilter,
 ) -> Result<()> {
@@ -261,6 +261,14 @@ pub fn run(
         .with_level(log_level)
         .env()
         .init()?;
+
+    let custom_translation_options = TranslationOptions {
+        reading_frame: 0,
+        allow_ambiguities: true,
+        drop_incomplete_codons: true,
+        strip_gaps: true,
+        ..translation_options.clone()
+    };
 
     // Set up the threadpool with the desired number of threads. If num_threads == 0 then it uses
     // all the threads
@@ -307,7 +315,7 @@ pub fn run(
                 record.clone(),
                 scoring,
                 alignment_mode,
-                aa_stop_char,
+                &custom_translation_options,
             )
         })
         .collect();

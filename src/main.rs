@@ -3,9 +3,10 @@ mod utils;
 
 use crate::tools::kmer_trim::OperatingMode;
 use crate::tools::pairwise_align_trim::AlignmentMode;
+use crate::utils::translate::{DEFAULT_STOP_CHAR, TranslationOptions};
 use anyhow::Result;
 use clap::builder::styling;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use log::{Level, LevelFilter};
 use std::path::PathBuf;
 
@@ -28,6 +29,45 @@ const STYLES: styling::Styles = styling::Styles::styled()
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Args)]
+#[group(required = false, multiple = true)]
+struct TranslateCliOptions {
+    #[arg(long, default_value_t = TranslationOptions::default().unknown_aa as char)]
+    unknown_aa: char,
+    #[arg(long, default_value_t = TranslationOptions::default().stop_aa as char)]
+    stop_aa: char,
+    #[arg(long, default_value_t = TranslationOptions::default().incomplete_aa as char)]
+    incomplete_aa: char,
+    #[arg(long, default_value_t = TranslationOptions::default().frameshift_aa as char)]
+    frameshift_aa: char,
+    #[arg(long, default_value_t = TranslationOptions::default().reading_frame)]
+    reading_frame: u8,
+    #[arg(long, default_value_t = TranslationOptions::default().allow_ambiguities)]
+    allow_ambiguities: bool,
+    #[arg(long, default_value_t = TranslationOptions::default().strip_gaps)]
+    strip_gaps: bool,
+    #[arg(long, default_value_t = TranslationOptions::default().ignore_gap_codons)]
+    ignore_gap_codons: bool,
+    #[arg(long, default_value_t = TranslationOptions::default().drop_incomplete_codons)]
+    drop_incomplete_codons: bool,
+}
+
+impl Into<TranslationOptions> for &TranslateCliOptions {
+    fn into(self) -> TranslationOptions {
+        TranslationOptions {
+            unknown_aa: self.unknown_aa as u8,
+            stop_aa: self.stop_aa as u8,
+            incomplete_aa: self.incomplete_aa as u8,
+            frameshift_aa: self.frameshift_aa as u8,
+            reading_frame: self.reading_frame,
+            allow_ambiguities: self.allow_ambiguities,
+            strip_gaps: self.strip_gaps,
+            ignore_gap_codons: self.ignore_gap_codons,
+            drop_incomplete_codons: self.drop_incomplete_codons,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -95,9 +135,9 @@ enum Commands {
         #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Local)]
         alignment_mode: AlignmentMode,
 
-        /// Character to use for a stop codon in the translation.
-        #[clap(long, default_value_t = utils::translate::DEFAULT_STOP_CHAR as char)]
-        aa_stop_char: char,
+        /// Options to use when translating
+        #[command(flatten)]
+        translation_options: TranslateCliOptions,
 
         /// Number of threads to use. Set to 0 to use all threads.
         #[arg(short = 't', long, default_value_t = 0)]
@@ -141,9 +181,9 @@ enum Commands {
         #[clap(short='d', long, value_enum, default_value_t = OperatingMode::DoubleMatch)]
         operating_mode: OperatingMode,
 
-        /// Character to use for a stop codon in the translation.
-        #[clap(long, default_value_t = utils::translate::DEFAULT_STOP_CHAR as char)]
-        aa_stop_char: char,
+        /// Options to use when translating
+        #[command(flatten)]
+        translation_options: TranslateCliOptions,
     },
     /// Translate sequences from nucleotides into amino acids.
     Translate {
@@ -155,26 +195,9 @@ enum Commands {
         #[arg(short = 'o', long)]
         output_file: PathBuf,
 
-        /// Remove all the gaps from the sequence before translating
-        #[arg(short = 's', long, default_value_t = false)]
-        strip_gaps: bool,
-
-        /// Don't strip gaps, but if a 'codon' contains only gaps, do not include it in the final
-        /// translation. Using this flag will preserve frameshifts as 'X' but avoid '-' in the
-        /// translation
-        #[arg(short = 'g', long, default_value_t = false)]
-        ignore_gap_codons: bool,
-
-        /// The total number of nucleotides in a sequence may not be a multiple of three. The last
-        /// codon thus may not be a complete codon. Setting this flag drops that amino acid.
-        /// Alternatively, leaving this flag off will replace codons with insufficient nucleotides
-        /// with a special character.
-        #[arg(short = 'd', long, default_value_t = false)]
-        drop_incomplete_codons: bool,
-
-        /// Character to use for a stop codon in the translation.
-        #[clap(long, default_value_t = utils::translate::DEFAULT_STOP_CHAR as char)]
-        aa_stop_char: char,
+        /// Options to use when translating
+        #[command(flatten)]
+        translation_options: TranslateCliOptions,
     },
     /// Remove repeated sequences in a file. Resulting file contains only unique sequences.
     Collapse {
@@ -257,7 +280,7 @@ fn main() -> Result<()> {
             gap_open_penalty,
             gap_extension_penalty,
             alignment_mode,
-            aa_stop_char,
+            translation_options,
             threads,
             verbose,
             quiet,
@@ -275,7 +298,7 @@ fn main() -> Result<()> {
                 (*gap_open_penalty) * -1,
                 (*gap_extension_penalty) * -1,
                 *alignment_mode,
-                Some(*aa_stop_char),
+                &(translation_options.into()),
                 *threads,
                 log_level,
             )?;
@@ -288,7 +311,7 @@ fn main() -> Result<()> {
             max_dist,
             output_type,
             operating_mode,
-            aa_stop_char,
+            translation_options,
         } => {
             tools::kmer_trim::run(
                 query_seq_file,
@@ -298,25 +321,15 @@ fn main() -> Result<()> {
                 output_type,
                 *max_dist,
                 operating_mode.clone(),
-                Some(*aa_stop_char),
+                &(translation_options.into()),
             )?;
         }
         Commands::Translate {
             input_file,
             output_file,
-            strip_gaps,
-            ignore_gap_codons,
-            drop_incomplete_codons,
-            aa_stop_char,
+            translation_options,
         } => {
-            tools::translate::run(
-                input_file,
-                output_file,
-                *strip_gaps,
-                *ignore_gap_codons,
-                *drop_incomplete_codons,
-                Some(*aa_stop_char),
-            )?;
+            tools::translate::run(input_file, output_file, &(translation_options.into()))?;
         }
         Commands::Collapse {
             input_file,
