@@ -25,7 +25,7 @@ fn find_best_alignment(pattern: &[u8], query: &[u8], max_distance: u8) -> Option
     let mut matches = pattern.find_all_lazy(query, max_distance);
 
     // TODO: What happens if we have multiple acceptable matches?
-    let (best_match_end_idx, dist) = matches.by_ref().min_by_key(|&(_, dist)| dist)?;
+    let (best_match_end_idx, _dist) = matches.by_ref().min_by_key(|&(_, dist)| dist)?;
 
     let mut alignment = Alignment::default();
     matches.alignment_at(best_match_end_idx, &mut alignment);
@@ -62,7 +62,7 @@ fn process_sequence_single_match(
     match output_type {
         SequenceType::Nucleotide => {
             // If we return nucleotides, then we convert aa_idx to nt_idx
-            let nt_end_idx = ((first_stop_codon + 1) * 3);
+            let nt_end_idx = (first_stop_codon + 1) * 3;
             Ok(new_nt_seq[..nt_end_idx].to_vec())
         }
         SequenceType::AminoAcid => Ok(new_aa_seq[..first_stop_codon].to_vec()),
@@ -249,7 +249,7 @@ pub fn run(
         .with_context(|| "Consensus file contained no sequences.")?
         .as_slice();
 
-    let mut output_type: SequenceType;
+    let output_type: SequenceType;
 
     if output_type_str == "AA" {
         output_type = SequenceType::AminoAcid;
@@ -267,7 +267,7 @@ pub fn run(
         max_align_distance as u8,
         output_type,
         mode,
-        translation_options,
+        &custom_translation_options,
     )?;
 
     fasta_utils::write_fasta_sequences(output_file, &output_seqs)?;

@@ -74,13 +74,6 @@ fn read_fasta(fasta_file: &PathBuf) -> Result<Vec<Vec<u8>>> {
     Ok(seqs)
 }
 
-fn write_fasta(output_file: &PathBuf, seq_name: &str, seq: &Vec<u8>) -> Result<()> {
-    let mut writer = fasta::Writer::to_file(output_file)?;
-    writer.write(seq_name, None, seq)?;
-
-    Ok(())
-}
-
 fn get_alignment_in_three_frames(
     ref_seq: &[u8],
     query: &[u8],

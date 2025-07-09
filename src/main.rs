@@ -3,11 +3,11 @@ mod utils;
 
 use crate::tools::kmer_trim::OperatingMode;
 use crate::tools::pairwise_align_trim::AlignmentMode;
-use crate::utils::translate::{DEFAULT_STOP_CHAR, TranslationOptions};
+use crate::utils::translate::TranslationOptions;
 use anyhow::Result;
 use clap::builder::styling;
 use clap::{Args, Parser, Subcommand};
-use log::{Level, LevelFilter};
+use log::LevelFilter;
 use std::path::PathBuf;
 
 #[derive(clap::ValueEnum, Clone)]

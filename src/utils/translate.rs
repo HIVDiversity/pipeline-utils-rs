@@ -1,8 +1,7 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use phf::{phf_map, phf_set};
 use std::convert::TryInto;
 use std::fmt;
-use std::io::repeat;
 #[derive(Clone, Copy)]
 pub struct TranslationOptions {
     pub unknown_aa: u8,
@@ -56,10 +55,6 @@ impl fmt::Display for TranslationOptions {
 }
 
 pub const GAP_CHAR: u8 = b"-"[0];
-const FRAMESHIFT_CHAR: u8 = b"X"[0];
-const UNKNOWN_AA_CHAR: u8 = b"X"[0];
-const INCOMPLETE_AA_CHAR: u8 = b"~"[0];
-
 pub const DEFAULT_STOP_CHAR: u8 = b"*"[0];
 
 static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
@@ -229,8 +224,6 @@ pub fn translate(dna_seq: &[u8], options: &TranslationOptions) -> Result<Vec<u8>
 
     Ok(amino_acids)
 }
-
-pub fn main() {}
 
 #[cfg(test)]
 mod tests {
