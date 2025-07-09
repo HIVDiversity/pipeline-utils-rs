@@ -44,8 +44,11 @@ fn process_sequence_single_match(
     output_type: SequenceType,
     translation_options: &TranslationOptions,
 ) -> Result<Vec<u8>> {
-    let start_aln = find_best_alignment(consensus_start_kmer, query, max_align_distance)
-        .with_context(|| "No best alignment found.")?;
+    let Some(start_aln) = find_best_alignment(consensus_start_kmer, query, max_align_distance)
+    else {
+        log::warn!("No best start alignment found");
+        return Ok(query.to_vec());
+    };
 
     let new_nt_seq = &query[start_aln.ystart..].to_owned();
     let new_aa_seq = translate(new_nt_seq, translation_options)?;
