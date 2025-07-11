@@ -6,3 +6,4 @@ pub mod kmer_trim;
 pub mod pairwise_align_trim;
 pub mod reverse_translate;
 pub mod translate;
+pub mod trim_sam;

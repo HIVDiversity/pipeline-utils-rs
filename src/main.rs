@@ -257,6 +257,24 @@ enum Commands {
         #[arg(short = 'n', long)]
         seq_name: String,
     },
+    /// Extract a feature from a genbank file and write it to a FASTA file.
+    TrimSam {
+        /// The input SAM file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+
+        /// The output file to write the trimmed sequences to as a FASTA
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+
+        /// The reference position to trim from inclusive, and base 1.
+        #[arg(short = 'f', long)]
+        trim_from: i64,
+
+        /// The reference position to trim to inclusive and base 1.
+        #[arg(short = 't', long)]
+        trim_to: i64,
+    },
 }
 
 fn main() -> Result<()> {
@@ -361,6 +379,12 @@ fn main() -> Result<()> {
         } => {
             tools::extract_seq_from_gb::run(input_file, output_file, seq_name)?;
         }
+        Commands::TrimSam {
+            input_file,
+            output_file,
+            trim_from,
+            trim_to,
+        } => tools::trim_sam::run(input_file, output_file, *trim_from, *trim_to)?,
     }
     Ok(())
 }
