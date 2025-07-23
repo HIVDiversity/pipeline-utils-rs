@@ -13,6 +13,9 @@ RUN cargo install cargo-chef
 # Copy the build plan from the previous Docker stage
 COPY --from=planner /app/recipe.json recipe.json
 
+RUN apt-get update && apt-get install -y lsb-release software-properties-common gnupg &&\
+    apt-get clean all && bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+
 # Build dependencies - this layer is cached as long as `recipe.json`
 # doesn't change.
 RUN cargo chef cook --recipe-path recipe.json

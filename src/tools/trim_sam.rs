@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 
 use bio::bio_types::sequence::SequenceRead;
 use colored::Colorize;
+use log::warn;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::{bam, bam::Read, bam::Record};
 use std::collections::HashMap;
@@ -12,8 +13,8 @@ const VERSION: &str = "1.0.0";
 
 fn find_read_pos_from_ref_pos(read: &Record, ref_pos: i64) -> Option<i64> {
     for pair in read.aligned_pairs_full() {
-        let current_ref_pos = pair[0];
-        let current_query_pos = pair[1];
+        let current_query_pos = pair[0];
+        let current_ref_pos = pair[1];
         if current_ref_pos.is_some_and(|x| x >= ref_pos) {
             if current_query_pos.is_some() {
                 return current_query_pos;
@@ -51,7 +52,10 @@ pub fn run(
         // in base 0. We then have to add 1 to the trim_to_seq value since the user provides us with
         // the last base they want INCLUDED
         let trim_from_seq =
-            find_read_pos_from_ref_pos(&record, trim_from - 1).unwrap_or(0) as usize;
+            find_read_pos_from_ref_pos(&record, trim_from - 1).unwrap_or_else(|| {
+                warn!("Failed to convert the read pos");
+                return 0;
+            }) as usize;
         let mut trim_to_seq = (find_read_pos_from_ref_pos(&record, trim_to - 1)
             .unwrap_or(record.len() as i64)
             + 1) as usize;
