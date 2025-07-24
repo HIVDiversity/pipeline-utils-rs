@@ -157,6 +157,22 @@ static AMBIGUOUS_CODON_AND_AA_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
     b"SAR" => b"Z"
 };
 
+// https://www.bioinformatics.org/sms/iupac.html or https://www.hiv.lanl.gov/content/sequence/HelpDocs/IUPAC.html
+pub static AMBIGUOUS_NT_LOOKUP: phf::Map<&[u8; 1], phf::Set<&[u8; 1]>> = phf_map! {
+    b"R" => phf_set!(b"A", b"G"),
+    b"Y" => phf_set!(b"C", b"T"),
+    b"S" => phf_set!(b"C", b"G"),
+    b"W" => phf_set!(b"A", b"T"),
+    b"K" => phf_set!(b"G", b"T"),
+    b"M" => phf_set!(b"A", b"C"),
+    b"B" => phf_set!(b"T", b"C", b"G"),
+    b"H" => phf_set!(b"T", b"C", b"A"),
+    b"D" => phf_set!(b"T", b"A", b"G"),
+    b"V" => phf_set!(b"C", b"A", b"G"),
+    b"N" => phf_set!(b"T", b"A", b"G", b"C"),
+    b"X" => phf_set!(b"T", b"A", b"G", b"C"),
+};
+
 pub fn translate(dna_seq: &[u8], options: &TranslationOptions) -> Result<Vec<u8>> {
     let mut new_seq = dna_seq[options.reading_frame..].to_vec();
     if options.strip_gaps {
