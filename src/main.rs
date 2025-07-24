@@ -275,6 +275,20 @@ enum Commands {
         #[arg(short = 't', long)]
         trim_to: i64,
     },
+    /// Convert IUPAC ambiguity codes to one of their possible nucleotides randomly
+    ReplaceAmbiguities {
+        /// The input FASTA file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+
+        /// The output file to write the new sequences to as a FASTA
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+
+        /// A seed for the random number generator
+        #[arg(short = 's', long, default_value_t = 42)]
+        seed: u64,
+    },
 }
 
 fn main() -> Result<()> {
@@ -385,6 +399,11 @@ fn main() -> Result<()> {
             trim_from,
             trim_to,
         } => tools::trim_sam::run(input_file, output_file, *trim_from, *trim_to)?,
+        Commands::ReplaceAmbiguities {
+            input_file,
+            output_file,
+            seed,
+        } => tools::replace_ambiguities::run(input_file, output_file, *seed)?,
     }
     Ok(())
 }

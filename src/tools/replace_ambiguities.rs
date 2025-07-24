@@ -1,13 +1,11 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
-use crate::utils::translate::{AMBIGUOUS_NT_LOOKUP, TranslationOptions, translate};
+use crate::utils::translate::AMBIGUOUS_NT_LOOKUP;
 use anyhow::Context;
 use bio::io::fasta;
 use colored::Colorize;
-use std::fmt::format;
 use std::path::PathBuf;
-const VERSION: &str = "0.1.0";
+const VERSION: &str = "1.0.0";
 
-fn replace_ambiguities(sequence: &[u8], mut rng: oorandom::Rand32) -> anyhow::Result<Vec<u8>> {
+fn replace_ambiguities(sequence: &[u8], rng: &mut oorandom::Rand32) -> anyhow::Result<Vec<u8>> {
     let new_sequence: Vec<u8> = sequence
         .iter()
         .cloned()
@@ -19,8 +17,7 @@ fn replace_ambiguities(sequence: &[u8], mut rng: oorandom::Rand32) -> anyhow::Re
                     .iter()
                     .nth(index)
                     .with_context(|| format!("Failed to get nucleotide for nt {:?}", nt))
-                    .unwrap_or(&&[nt])
-                    .clone()[0]
+                    .unwrap_or(&&[nt])[0]
             } else {
                 nt
             };
@@ -30,24 +27,20 @@ fn replace_ambiguities(sequence: &[u8], mut rng: oorandom::Rand32) -> anyhow::Re
     Ok(new_sequence)
 }
 
-pub fn run(
-    input_filepath: &PathBuf,
-    output_filepath: &PathBuf,
-    seed: u64,
-    translation_options: &TranslationOptions,
-) -> anyhow::Result<()> {
+pub fn run(input_filepath: &PathBuf, output_filepath: &PathBuf, seed: u64) -> anyhow::Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
 
     log::info!(
         "{}",
-        format!("This is {} version {}", "translate".italic(), VERSION)
-            .bold()
-            .bright_purple()
+        format!(
+            "This is {} version {}",
+            "replace-ambiguities".italic(),
+            VERSION
+        )
+        .bold()
+        .bright_purple()
     );
-    log::info!(
-        "Command was run with the following options:\n{}",
-        translation_options
-    );
+    log::info!("Command was run with a random seed = {}", seed);
 
     let reader = fasta::Reader::from_file(input_filepath).expect("Could not open input file.");
     let mut rng = oorandom::Rand32::new(seed);
@@ -64,7 +57,7 @@ pub fn run(
     for record_result in reader.records() {
         match record_result {
             Ok(record) => {
-                let new_seq = replace_ambiguities(record.seq(), rng)?;
+                let new_seq = replace_ambiguities(record.seq(), &mut rng)?;
                 writer.write(record.id(), None, new_seq.as_slice())?;
             }
             Err(_) => {

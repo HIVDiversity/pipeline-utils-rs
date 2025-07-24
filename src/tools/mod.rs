@@ -4,7 +4,7 @@ pub mod extract_seq_from_gb;
 pub mod get_consensus;
 pub mod kmer_trim;
 pub mod pairwise_align_trim;
-mod replace_ambiguities;
+pub mod replace_ambiguities;
 pub mod reverse_translate;
 pub mod translate;
 pub mod trim_sam;
