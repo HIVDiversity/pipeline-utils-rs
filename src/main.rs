@@ -23,9 +23,10 @@ const STYLES: styling::Styles = styling::Styles::styled()
     .placeholder(styling::AnsiColor::Cyan.on_default());
 
 #[derive(Parser)]
-#[command(name = "ap-utils")]
-#[command(about = "A collection of CLI utilities for the alignment pipeline")]
+#[command(name = "pipeline-utils-rs")]
+#[command(about = "A collection of CLI utilities for manipulating sequencing files.")]
 #[command(styles = STYLES)]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -204,7 +205,7 @@ enum Commands {
         #[command(flatten)]
         translation_options: TranslateCliOptions,
     },
-    /// Remove repeated sequences in a file. Resulting file contains only unique sequences.
+    /// Remove non-unique sequences in a file. Resulting file contains only unique sequences.
     Collapse {
         /// The FASTA-formatted file containing the uncollapsed sequences
         #[arg(short = 'i', long)]
@@ -262,7 +263,7 @@ enum Commands {
         #[arg(short = 'n', long)]
         seq_name: String,
     },
-    /// Extract a feature from a genbank file and write it to a FASTA file.
+    /// Trim a SAM file using coordinates on the reference sequence.
     TrimSam {
         /// The input SAM file
         #[arg(short = 'i', long)]
@@ -272,11 +273,11 @@ enum Commands {
         #[arg(short = 'o', long)]
         output_file: PathBuf,
 
-        /// The reference position to trim from inclusive, and base 1.
+        /// The reference position to trim from inclusive, and base 1
         #[arg(short = 'f', long)]
         trim_from: i64,
 
-        /// The reference position to trim to inclusive and base 1.
+        /// The reference position to trim to inclusive and base 1
         #[arg(short = 't', long)]
         trim_to: i64,
     },
