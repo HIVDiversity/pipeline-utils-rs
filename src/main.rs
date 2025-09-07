@@ -131,6 +131,11 @@ enum Commands {
         #[arg(long, default_value_t = 1)]
         gap_extension_penalty: i32,
 
+        /// The clipping penalty. Input as positive number, it will be converted to
+        /// a negative one. e.g 1 becomes -1
+        #[arg(long, default_value_t = 10)]
+        clip_penalty: i32,
+
         /// What algorithm to use under the hood. Custom uses a semi-global approach, while local is a simple local alignment algorithm
         #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Local)]
         alignment_mode: AlignmentMode,
@@ -293,6 +298,8 @@ enum Commands {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    simple_logger::SimpleLogger::new().env().init()?;
+    log::info!("This is pipeline-utils-rs version??");
 
     match &cli.command {
         Commands::ReverseTranslate {
@@ -311,6 +318,7 @@ fn main() -> Result<()> {
             output_file,
             gap_open_penalty,
             gap_extension_penalty,
+            clip_penalty,
             alignment_mode,
             translation_options,
             threads,
@@ -329,6 +337,7 @@ fn main() -> Result<()> {
                 output_file,
                 (*gap_open_penalty) * -1,
                 (*gap_extension_penalty) * -1,
+                (*clip_penalty) * -1,
                 *alignment_mode,
                 &(translation_options.into()),
                 *threads,

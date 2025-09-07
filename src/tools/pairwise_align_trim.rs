@@ -129,6 +129,14 @@ fn get_alignment_in_three_frames(
                 possible_alignment.score
             );
 
+            log::debug!(
+                "\n{}",
+                String::from_utf8(
+                    query_aa[possible_alignment.xstart..possible_alignment.xend].to_vec()
+                )
+                .unwrap()
+            );
+
             results.push(result.clone());
         }
     }
@@ -169,22 +177,18 @@ fn get_best_translation(
             }
 
             log::info!(target: query_name,"Frame: {:?} - Score: {:?}", result.frame + 1, result.score);
+            let result_aln = &result.clone().alignment.unwrap();
 
-            match &result.alignment {
-                None => {}
-                Some(result_aln) => {
-                    log::debug!(target: query_name,
-                        "Alignment:\n{}",
-                        result_aln.pretty(
-                            translate(&query[result.frame..], translation_options)
-                                .unwrap()
-                                .as_slice(),
-                            translate(ref_seq, translation_options).unwrap().as_slice(),
-                            120
-                        )
-                    );
-                }
-            }
+            log::debug!(
+                "\n{}",
+                result_aln.pretty(
+                    translate(&query[result.frame..], translation_options)
+                        .unwrap()
+                        .as_slice(),
+                    translate(ref_seq, translation_options).unwrap().as_slice(),
+                    120,
+                )
+            );
 
             return result.clone();
         } else {
@@ -244,6 +248,7 @@ pub fn run(
     output_file: &PathBuf,
     gap_open_penalty: i32,
     gap_extend_penalty: i32,
+    clip_penalty: i32,
     alignment_mode: AlignmentMode,
     translation_options: &TranslationOptions,
     num_threads: usize,
@@ -297,7 +302,7 @@ pub fn run(
         bio::scores::blosum62 as fn(u8, u8) -> i32,
     )
     .yclip(MIN_SCORE)
-    .xclip(-10);
+    .xclip(clip_penalty);
 
     // Run the main logic in parallel.
     let results: Vec<Record> = queries
