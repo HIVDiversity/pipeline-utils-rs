@@ -299,8 +299,8 @@ enum Commands {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    simple_logger::SimpleLogger::new().env().init()?;
-    log::info!("This is pipeline-utils-rs version??");
+    // simple_logger::SimpleLogger::new().env().init()?;
+    // log::info!("This is pipeline-utils-rs version??");
 
     match &cli.command {
         Commands::ReverseTranslate {
