@@ -2,6 +2,7 @@ use crate::utils;
 use anyhow::{Result, anyhow};
 use bio::io::fasta;
 use colored::Colorize;
+use itertools::Itertools;
 use nalgebra::DMatrix;
 use std::collections::HashMap;
 use std::path::PathBuf;
