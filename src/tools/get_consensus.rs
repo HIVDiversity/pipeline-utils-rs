@@ -5,12 +5,12 @@ use clap::ValueEnum;
 use colored::Colorize;
 use itertools::Itertools;
 use nalgebra::DMatrix;
+use pyo3::prelude::*;
 use rand::seq::IteratorRandom;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use utils::fasta_utils;
 use utils::translate::find_ambiguity_code;
-
 const VERSION: &str = "0.3.0";
 
 #[derive(ValueEnum, Clone, Copy)]
@@ -157,6 +157,21 @@ pub fn run(
     write_consensus(output_path, consensus_name, &consensus)?;
 
     Ok(())
+}
+
+#[pymodule]
+mod pygetcons {
+    use super::*;
+    use pyo3::prelude::*;
+
+    #[pyfunction]
+    fn get_cons(seqs: Vec<String>) -> PyResult<String> {
+        let new_msa = seqs.iter().map(|seq| seq.as_bytes().to_vec()).collect();
+        let ambiguity_mode = AmbiguityMode::UseIUPAC;
+        let new_seqs = sequences_to_matrix(&new_msa).unwrap();
+        let consensus = build_consensus(&new_seqs, ambiguity_mode).unwrap();
+        PyResult::Ok(String::from_utf8(consensus)?)
+    }
 }
 
 #[cfg(test)]

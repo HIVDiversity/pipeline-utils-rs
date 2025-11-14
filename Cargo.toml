@@ -20,3 +20,12 @@ rust-htslib = { version = "*", default-features = false }
 oorandom = "11.1.5"
 itertools = "0.14.0"
 rand = "0.9.2"
+pyo3 = { version = "0.27.1", features = ["extension-module"] }
+
+[lib]
+path = "src/main.rs"
+name = "pygetcons"
+# "cdylib" is necessary to produce a shared library for Python to import from.
+crate-type = ["cdylib"]
+
+
