@@ -1,7 +1,10 @@
 use anyhow::Result;
+use itertools::Itertools;
 use phf::{phf_map, phf_set};
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt;
+
 #[derive(Clone, Copy)]
 pub struct TranslationOptions {
     pub unknown_aa: u8,
@@ -172,6 +175,18 @@ pub static AMBIGUOUS_NT_LOOKUP: phf::Map<&[u8; 1], phf::Set<&[u8; 1]>> = phf_map
     b"N" => phf_set!(b"T", b"A", b"G", b"C"),
     b"X" => phf_set!(b"T", b"A", b"G", b"C"),
 };
+
+pub fn find_ambiguity_code(nts: &Vec<&u8>) -> Option<&'static [u8; 1]> {
+    let query_set: HashSet<&u8> = nts.iter().copied().sorted().collect();
+
+    for (code, nt_set) in AMBIGUOUS_NT_LOOKUP.entries() {
+        let code_set: HashSet<&u8> = nt_set.iter().map(|ambig_char| &ambig_char[0]).collect();
+        if query_set == code_set {
+            return Some(code);
+        }
+    }
+    None
+}
 
 pub fn translate(dna_seq: &[u8], options: &TranslationOptions) -> Result<Vec<u8>> {
     let mut new_seq = dna_seq[options.reading_frame..].to_vec();

@@ -1,14 +1,25 @@
 use crate::utils;
 use anyhow::{Result, anyhow};
 use bio::io::fasta;
+use clap::ValueEnum;
 use colored::Colorize;
 use itertools::Itertools;
 use nalgebra::DMatrix;
+use rand::seq::IteratorRandom;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use utils::fasta_utils;
+use utils::translate::find_ambiguity_code;
 
 const VERSION: &str = "0.2.1";
+
+#[derive(ValueEnum, Clone, Copy)]
+pub enum AmbiguityMode {
+    UseIUPAC,
+    First,
+    Random,
+    MarkN,
+}
 
 fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     // Check if sequences are empty
@@ -39,7 +50,7 @@ fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     ))
 }
 
-fn build_consensus(msa: &DMatrix<u8>) -> Result<Vec<u8>> {
+fn build_consensus(msa: &DMatrix<u8>, ambiguity_mode: AmbiguityMode) -> Result<Vec<u8>> {
     let mut consensus: Vec<u8> = Vec::new();
 
     for col in msa.column_iter() {
@@ -49,16 +60,56 @@ fn build_consensus(msa: &DMatrix<u8>) -> Result<Vec<u8>> {
             *col_count.entry(item).or_insert(0) += 1;
         }
 
-        let largest_item = col_count
+        // Attempt to get the item in the column with the largest count, or if there
+        // are multiple then get the set.
+        let largest_items: Vec<&u8> = col_count
             .iter()
-            .max_by(|a, b| a.1.cmp(&b.1))
-            .map(|(k, _v)| k)
-            .ok_or(anyhow!(
-                "Could not get the most frequent element in this column."
-            ))?;
+            .max_set_by(|a, b| a.1.cmp(&b.1))
+            .iter()
+            .cloned()
+            .map(|(k, _v)| *k)
+            .collect();
 
-        consensus.push(largest_item.to_owned().to_owned());
+        if largest_items.len() == 1 {
+            consensus.push(*largest_items[0]);
+        } else {
+            match ambiguity_mode {
+                AmbiguityMode::UseIUPAC => {
+                    let ambiguity_code = find_ambiguity_code(&largest_items);
+                    match ambiguity_code {
+                        None => {
+                            return Err(anyhow!(
+                                "A nucleotide set doesn't have an ambiguity code."
+                            ));
+                        }
+                        Some(code) => {
+                            consensus.push(code[0]);
+                        }
+                    }
+                }
+                AmbiguityMode::First => {
+                    let first_item = largest_items
+                        .iter()
+                        .sorted()
+                        .map(|x| **x)
+                        .collect::<Vec<u8>>()
+                        .first()
+                        .unwrap()
+                        .to_owned();
+
+                    consensus.push(first_item);
+                }
+                AmbiguityMode::Random => {
+                    let random_item = largest_items.iter().choose(&mut rand::rng()).unwrap();
+                    consensus.push(**random_item);
+                }
+                AmbiguityMode::MarkN => {
+                    consensus.push(b'N');
+                }
+            }
+        }
     }
+
     Ok(consensus)
 }
 
@@ -76,6 +127,7 @@ pub fn run(
     input_seqs_aligned: &PathBuf,
     output_path: &PathBuf,
     consensus_name: &String,
+    ambiguity_mode: AmbiguityMode,
 ) -> Result<()> {
     simple_logger::SimpleLogger::new().env().init()?;
     log::info!(
@@ -99,10 +151,40 @@ pub fn run(
     );
 
     log::info!("Generating consensus.");
-    let consensus = build_consensus(&seq_matrix)?;
+    let consensus = build_consensus(&seq_matrix, ambiguity_mode)?;
 
     log::info!("Writing consensus to {:?}", output_path);
     write_consensus(output_path, consensus_name, &consensus)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_ambiguities() {
+        let input: Vec<Vec<u8>> = vec![vec![b'T', b'T', b'G'], vec![b'A', b'T', b'G']];
+        let matrix = sequences_to_matrix(&input).unwrap();
+        let consensus_iupac = build_consensus(&matrix, AmbiguityMode::UseIUPAC).unwrap();
+        let consensus_first = build_consensus(&matrix, AmbiguityMode::First).unwrap();
+        let consensus_markn = build_consensus(&matrix, AmbiguityMode::MarkN).unwrap();
+
+        assert_eq!(
+            String::from("WTG"),
+            String::from_utf8(consensus_iupac).unwrap()
+        );
+
+        assert_eq!(
+            String::from("NTG"),
+            String::from_utf8(consensus_markn).unwrap()
+        );
+
+        assert_eq!(
+            String::from("ATG"),
+            String::from_utf8(consensus_first).unwrap()
+        );
+    }
 }

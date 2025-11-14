@@ -1,6 +1,7 @@
 mod tools;
 mod utils;
 
+use crate::tools::get_consensus::AmbiguityMode;
 use crate::tools::kmer_trim::OperatingMode;
 use crate::tools::pairwise_align_trim::AlignmentMode;
 use crate::utils::translate::TranslationOptions;
@@ -105,6 +106,10 @@ enum Commands {
         ///What to name the consensus sequence in the FASTA file
         #[arg(short = 'n', long)]
         consensus_name: String,
+
+        /// How to handle ambiguous characters
+        #[arg(short = 'a', long)]
+        ambiguity_mode: AmbiguityMode,
     },
     /// Align and trim sequences to a reference sequence.
     /// Given a long consensus sequence containing a shorter reference sequence, extract the shorter
@@ -312,7 +317,8 @@ fn main() -> Result<()> {
             input_msa,
             output_file,
             consensus_name,
-        } => tools::get_consensus::run(input_msa, output_file, consensus_name)?,
+            ambiguity_mode,
+        } => tools::get_consensus::run(input_msa, output_file, consensus_name, *ambiguity_mode)?,
         Commands::AlignTrim {
             reference_file,
             query_file,
