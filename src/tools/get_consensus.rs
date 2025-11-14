@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use utils::fasta_utils;
 use utils::translate::find_ambiguity_code;
 
-const VERSION: &str = "0.2.1";
+const VERSION: &str = "0.3.0";
 
 #[derive(ValueEnum, Clone, Copy)]
 pub enum AmbiguityMode {
