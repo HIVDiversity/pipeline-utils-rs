@@ -165,9 +165,15 @@ mod pygetcons {
     use pyo3::prelude::*;
 
     #[pyfunction]
-    fn get_cons(seqs: Vec<String>) -> PyResult<String> {
+    fn get_cons(seqs: Vec<String>, ambiguity_mode_str: String) -> PyResult<String> {
         let new_msa = seqs.iter().map(|seq| seq.as_bytes().to_vec()).collect();
-        let ambiguity_mode = AmbiguityMode::UseIUPAC;
+        let ambiguity_mode = match ambiguity_mode_str.as_str() {
+            "IUPAC" => AmbiguityMode::UseIUPAC,
+            "First" => AmbiguityMode::First,
+            "Random" => AmbiguityMode::Random,
+            "MarkN" => AmbiguityMode::MarkN,
+            _ => AmbiguityMode::UseIUPAC,
+        };
         let new_seqs = sequences_to_matrix(&new_msa).unwrap();
         let consensus = build_consensus(&new_seqs, ambiguity_mode).unwrap();
         PyResult::Ok(String::from_utf8(consensus)?)
