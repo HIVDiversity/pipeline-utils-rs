@@ -300,6 +300,30 @@ enum Commands {
         #[arg(short = 's', long, default_value_t = 42)]
         seed: u64,
     },
+    /// Given the TSV output from a Diamond Blastx search, return the trimmed templates from a FASTA
+    /// file.
+    TrimDiamond{
+        /// The input FASTA file containing nucleotide sequences
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+
+        /// The TSV file output from the blastx command.
+        #[arg(short = 't', long)]
+        tsv_file: PathBuf,
+
+        /// Optional comma-separated list of features to extract
+        #[arg(short = 't', long)]
+        features: Option(String),
+
+        /// Optionally, a comma-separated list of strings to prepend onto the filename
+        #[arg(long)]
+        prepend: Option(String),
+
+        /// The output directory to write the resulting files to
+        #[arg(short = 'o', long)]
+        output_dir: PathBuf,
+
+    }
 }
 
 fn main() -> Result<()> {
@@ -420,6 +444,13 @@ fn main() -> Result<()> {
             output_file,
             seed,
         } => tools::replace_ambiguities::run(input_file, output_file, *seed)?,
+        Commands::TrimDiamond {
+            input_file,
+            tsv_file,
+            features,
+            prepend,
+            output_dir
+        } => {}
     }
     Ok(())
 }
