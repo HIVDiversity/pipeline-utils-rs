@@ -302,28 +302,23 @@ enum Commands {
     },
     /// Given the TSV output from a Diamond Blastx search, return the trimmed templates from a FASTA
     /// file.
-    TrimDiamond{
+    ProcessMiniprot {
         /// The input FASTA file containing nucleotide sequences
         #[arg(short = 'i', long)]
         input_file: PathBuf,
 
         /// The TSV file output from the blastx command.
-        #[arg(short = 't', long)]
-        tsv_file: PathBuf,
-
-        /// Optional comma-separated list of features to extract
-        #[arg(short = 't', long)]
-        features: Option(String),
+        #[arg(short = 'p', long)]
+        paf_file: PathBuf,
 
         /// Optionally, a comma-separated list of strings to prepend onto the filename
         #[arg(long)]
-        prepend: Option(String),
+        prepend: Option<String>,
 
         /// The output directory to write the resulting files to
         #[arg(short = 'o', long)]
         output_dir: PathBuf,
-
-    }
+    },
 }
 
 fn main() -> Result<()> {
@@ -444,13 +439,12 @@ fn main() -> Result<()> {
             output_file,
             seed,
         } => tools::replace_ambiguities::run(input_file, output_file, *seed)?,
-        Commands::TrimDiamond {
+        Commands::ProcessMiniprot {
             input_file,
-            tsv_file,
-            features,
+            paf_file,
             prepend,
-            output_dir
-        } => {}
+            output_dir,
+        } => tools::process_miniprot::run(input_file, paf_file, prepend, output_dir)?,
     }
     Ok(())
 }

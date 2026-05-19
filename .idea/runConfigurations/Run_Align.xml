@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run Align" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run --package pipeline-utils-rs --bin pipeline-utils-rs -- align-consensus -r test_data/pairwise_aln/ref.fasta -q test_data/pairwise_aln/consensus.fasta -o test_data/pairwise_aln/output.fasta -n output -t NT " />
+    <option name="command" value="run --package pipeline-utils-rs --bin pipeline-utils-rs -- process-miniprot -i $PROJECT_DIR$/../alternate_sam_trimming/working_directory/C002_CAP267_2000-4220-4210-3090_env_nt_f-ctm0_p-fs5-ma070.fasta -p new_test_data/process-miniprot/CAP267.paf -o new_test_data/process-miniprot/output.fasta" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs />
     <option name="emulateTerminal" value="true" />

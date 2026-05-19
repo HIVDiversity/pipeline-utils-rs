@@ -18,7 +18,7 @@ pub fn write_fasta_sequences(
         fasta::Writer::to_file(output_file).with_context(|| "Could not open output file")?;
 
     for (seq_id, seq) in sequences {
-        writer.write(&seq_id, None, seq.as_slice())?;
+        writer.write(seq_id.as_str(), None, seq.as_slice())?;
     }
 
     Ok(())
