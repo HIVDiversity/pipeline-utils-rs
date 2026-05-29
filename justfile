@@ -26,13 +26,13 @@ run-docker-it tag=latest-tag:
 docker: build-docker push-docker
 
 build:
-    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v ./:/build purs-build cargo build
+    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo build
 
 run *args="":
-    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v ./:/build purs-build cargo run -- {{ args }}
+    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo run -- {{ args }}
 
 cargo *args:
-    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v ./:/build purs-build cargo {{ args }}
+    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo {{ args }}
 
 test-align-trim *args:
     just run align-trim -r new_test_data/align-trim/ref.fasta -i new_test_data/align-trim/query.fasta -o new_test_data/align-trim/output.fasta {{ args }}

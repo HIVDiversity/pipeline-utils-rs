@@ -203,4 +203,17 @@ pub enum Commands {
         #[arg(short = 'o', long)]
         output_dir: PathBuf,
     },
+
+    /// Trims the nucleotides after the first stop codon in a sequence
+    TrimAfterStop {
+        /// The input FASTA file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write the trimmed sequences to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Include the stop codon in the output
+        #[arg(long, default_value_t = true)]
+        include_stop: bool,
+    },
 }

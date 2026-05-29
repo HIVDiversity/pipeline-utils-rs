@@ -84,6 +84,13 @@ fn main() -> Result<()> {
             output_dir,
         } => {
             tools::process_miniprot::run(&input_file, &paf_file, &prepend, &output_dir)?;
+        },
+        Commands::TrimAfterStop {
+            input_file,
+            output_file,
+            include_stop
+        } => {
+            tools::trim_after_stop_codon::run(&input_file, &output_file, include_stop)?;
         }
     }
 
