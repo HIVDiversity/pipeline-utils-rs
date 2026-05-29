@@ -24,6 +24,7 @@ itertools = "0.14.0"
 rand = "0.9.2"
 pyo3 = { version = "0.27.1", features = ["extension-module"] }
 polars = { version = "0.53.0", features = ["lazy", "mode", "strings"] }
+velcro = "0.5.4"
 
 [lib]
 path = "src/main.rs"

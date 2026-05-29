@@ -125,7 +125,7 @@ static CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {
         b"---" => b"-",
 };
 
-static STOP_CODONS: phf::Set<&[u8; 3]> = phf_set! {b"TAA", b"TAG", b"TGA"};
+pub static STOP_CODONS: phf::Set<&[u8; 3]> = phf_set! {b"TAA", b"TAG", b"TGA"};
 
 // Thanks https://cran.r-project.org/web/packages/MLMOI/vignettes/StandardAmbiguityCodes.html
 static AMBIGUOUS_CODON_TABLE: phf::Map<&[u8; 3], &[u8; 1]> = phf_map! {

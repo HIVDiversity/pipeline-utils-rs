@@ -31,6 +31,9 @@ build:
 run *args="":
     docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v ./:/build purs-build cargo run -- {{ args }}
 
+cargo *args:
+    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v ./:/build purs-build cargo {{ args }}
+
 test-align-trim *args:
     just run align-trim -r new_test_data/align-trim/ref.fasta -i new_test_data/align-trim/query.fasta -o new_test_data/align-trim/output.fasta {{ args }}
 
