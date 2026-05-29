@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteTargetsManager">
+    <targets>
+      <target name="purs-build:latest" type="docker" uuid="faa63313-4e45-4e9b-9b90-c42454ed9d6d">
+        <config>
+          <option name="targetPlatform">
+            <TargetPlatform />
+          </option>
+          <option name="buildImageConfig">
+            <BuildImageConfig>
+              <option name="dockerFile" value="Dockerfile_Build" />
+            </BuildImageConfig>
+          </option>
+          <option name="buildNotPull" value="false" />
+          <option name="containerConfig">
+            <ContainerConfig>
+              <option name="runCliOptions" value="--rm -u &quot;$(id -u):$(id -g)&quot; -v &quot;$HOME&quot;:&quot;$HOME&quot;" />
+            </ContainerConfig>
+          </option>
+          <option name="projectRootOnTarget" value="$HOME" />
+          <option name="pullImageConfig">
+            <PullImageConfig>
+              <option name="tagToPull" value="purs-build:latest" />
+            </PullImageConfig>
+          </option>
+        </config>
+        <ContributedStateBase type="RsLanguageRuntime">
+          <config>
+            <option name="cargoPath" value="/usr/local/cargo/bin/cargo" />
+            <option name="cargoVersion" value="1.95.0 (f2d3ce0bd 2026-03-21)" />
+            <option name="rustcPath" value="/usr/local/cargo/bin/rustc" />
+            <option name="rustcVersion" value="1.95.0 (59807616e 2026-04-14)" />
+          </config>
+        </ContributedStateBase>
+      </target>
+    </targets>
+  </component>
+</project>

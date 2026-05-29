@@ -6,4 +6,5 @@ pub mod process_miniprot;
 pub mod replace_ambiguities;
 pub mod reverse_translate;
 pub mod translate;
+pub mod trim_after_stop_codon;
 pub mod trim_sam;
