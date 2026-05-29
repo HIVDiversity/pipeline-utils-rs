@@ -3,8 +3,6 @@ mod tools;
 mod utils;
 
 use crate::tools::get_consensus::AmbiguityMode;
-use crate::tools::kmer_trim::OperatingMode;
-use crate::tools::pairwise_align_trim::AlignmentMode;
 use crate::utils::translate::TranslationOptions;
 use anyhow::Result;
 use clap::builder::styling;
@@ -112,91 +110,7 @@ enum Commands {
         #[arg(short = 'a', long)]
         ambiguity_mode: AmbiguityMode,
     },
-    /// Align and trim sequences to a reference sequence.
-    /// Given a long consensus sequence containing a shorter reference sequence, extract the shorter
-    /// reference sequence by aligning the ref seq to the cons seq and trimming.
-    AlignTrim {
-        /// Path to the FASTA file containing the reference seq. Note that only the first sequence in the file is used if multiple are present.
-        #[arg(short = 'r', long)]
-        reference_file: PathBuf,
 
-        /// Path to the FASTA file containing the query seq. Note that all the sequences in the file will be processed.
-        #[arg(short = 'i', long)]
-        query_file: PathBuf,
-
-        /// Path to write the resulting trimmed sequence
-        #[arg(short = 'o', long)]
-        output_file: PathBuf,
-
-        /// The gap open penalty. Do not use a negative number here - enter a positive number and it
-        /// will be converted to a negative one. e.g 10 becomes -10
-        #[arg(long, default_value_t = 5)]
-        gap_open_penalty: i32,
-
-        /// The gap extension penalty. Do not use a negative number here - enter a positive number and it
-        /// will be converted to a negative one. e.g 1 becomes -1
-        #[arg(long, default_value_t = 1)]
-        gap_extension_penalty: i32,
-
-        /// The clipping penalty. Input as positive number, it will be converted to
-        /// a negative one. e.g 1 becomes -1
-        #[arg(long, default_value_t = 10)]
-        clip_penalty: i32,
-
-        /// What algorithm to use under the hood. Custom uses a semi-global approach, while local is a simple local alignment algorithm
-        #[arg(short = 'a', long, value_enum, default_value_t = AlignmentMode::Local)]
-        alignment_mode: AlignmentMode,
-
-        /// Options to use when translating
-        #[command(flatten)]
-        translation_options: TranslateCliOptions,
-
-        /// Number of threads to use. Set to 0 to use all threads.
-        #[arg(short = 't', long, default_value_t = 0)]
-        threads: usize,
-
-        /// Turns on verbose logging. Not recommended for multiple sequences.
-        #[arg(short = 'v', long, default_value_t = false)]
-        verbose: bool,
-
-        /// Turns off logging except for errors. Will override the verbose setting.
-        #[arg(short = 'q', long, default_value_t = false)]
-        quiet: bool,
-    },
-    /// Trim sequences to a reference sequence using a k-mer matching approach.
-    KmerTrim {
-        /// The FASTA file containing the untrimmed nucleotide sequences
-        #[arg(short = 'i', long)]
-        query_seq_file: PathBuf,
-
-        /// The file with the NT consensus sequence.
-        #[arg(short = 'r', long)]
-        ref_seq_file: PathBuf,
-
-        /// The output file
-        #[arg(short = 'o', long)]
-        output_file: PathBuf,
-
-        /// The size of the kmer to use to compare the consensus to the query. Increasing this value will increase runtime. Decreasing it will reduce specificity.
-        #[arg(short='k', long, default_value_t = 10 as i32)]
-        kmer_size: i32,
-
-        /// The maximum distance that the kmer can be from where it matches. Higher numbers here mean less specific matches
-        #[arg(short='m', long, default_value_t = 2 as i32)]
-        max_dist: i32,
-
-        /// What type of sequence to write, either AA or NT
-        #[arg(short='t', long, default_value_t = String::from("AA"))]
-        output_type: String,
-
-        /// Operating mode
-        #[clap(short='d', long, value_enum, default_value_t = OperatingMode::DoubleMatch)]
-        operating_mode: OperatingMode,
-
-        /// Options to use when translating
-        #[command(flatten)]
-        translation_options: TranslateCliOptions,
-    },
     /// Translate sequences from nucleotides into amino acids.
     Translate {
         /// The FASTA-formatted file containing the nucleotide sequences to translate
@@ -339,59 +253,7 @@ fn main() -> Result<()> {
             consensus_name,
             ambiguity_mode,
         } => tools::get_consensus::run(input_msa, output_file, consensus_name, *ambiguity_mode)?,
-        Commands::AlignTrim {
-            reference_file,
-            query_file,
-            output_file,
-            gap_open_penalty,
-            gap_extension_penalty,
-            clip_penalty,
-            alignment_mode,
-            translation_options,
-            threads,
-            verbose,
-            quiet,
-        } => {
-            let log_level = match (verbose, quiet) {
-                (true, true) => LevelFilter::Error,
-                (false, true) => LevelFilter::Error,
-                (true, false) => LevelFilter::Debug,
-                (false, false) => LevelFilter::Info,
-            };
-            tools::pairwise_align_trim::run(
-                reference_file,
-                query_file,
-                output_file,
-                (*gap_open_penalty) * -1,
-                (*gap_extension_penalty) * -1,
-                (*clip_penalty) * -1,
-                *alignment_mode,
-                &(translation_options.into()),
-                *threads,
-                log_level,
-            )?;
-        }
-        Commands::KmerTrim {
-            query_seq_file,
-            ref_seq_file,
-            output_file,
-            kmer_size,
-            max_dist,
-            output_type,
-            operating_mode,
-            translation_options,
-        } => {
-            tools::kmer_trim::run(
-                query_seq_file,
-                ref_seq_file,
-                output_file,
-                *kmer_size,
-                output_type,
-                *max_dist,
-                operating_mode.clone(),
-                &(translation_options.into()),
-            )?;
-        }
+
         Commands::Translate {
             input_file,
             output_file,

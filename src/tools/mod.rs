@@ -2,8 +2,6 @@ pub mod collapse;
 pub mod expand;
 pub mod extract_seq_from_gb;
 pub mod get_consensus;
-pub mod kmer_trim;
-pub mod pairwise_align_trim;
 pub mod process_miniprot;
 pub mod replace_ambiguities;
 pub mod reverse_translate;
