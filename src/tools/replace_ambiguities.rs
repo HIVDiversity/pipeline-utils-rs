@@ -1,9 +1,9 @@
-use crate::utils::translate::AMBIGUOUS_NT_LOOKUP;
+use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
+use crate::utils::codon_tables::AMBIGUOUS_NT_LOOKUP;
 use anyhow::Context;
-use bio::io::fasta;
 use colored::Colorize;
+use itertools::Itertools;
 use std::path::PathBuf;
-const VERSION: &str = "1.0.0";
 
 fn replace_ambiguities(sequence: &[u8], rng: &mut oorandom::Rand32) -> anyhow::Result<Vec<u8>> {
     let new_sequence: Vec<u8> = sequence
@@ -27,26 +27,36 @@ fn replace_ambiguities(sequence: &[u8], rng: &mut oorandom::Rand32) -> anyhow::R
     Ok(new_sequence)
 }
 
-pub fn run(input_filepath: &PathBuf, output_filepath: &PathBuf, seed: u64) -> anyhow::Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
+pub fn replace_ambiguities_records(
+    sequences: FastaRecords,
+    seed: u64,
+) -> anyhow::Result<FastaRecords> {
+    let mut rng = oorandom::Rand32::new(seed);
+    let mut new_sequences: FastaRecords = FastaRecords::with_capacity(sequences.capacity());
 
+    // Iterate in a deterministic order (HashMap order is randomized per-process) so the
+    // seeded RNG stream is applied to sequences in the same order on every run.
+    for seq_id in sequences.keys().sorted().cloned().collect::<Vec<_>>() {
+        let sequence = &sequences[&seq_id];
+        let new_seq = replace_ambiguities(sequence, &mut rng)?;
+        new_sequences.insert(seq_id, new_seq);
+    }
+
+    Ok(new_sequences)
+}
+
+pub fn run(input_filepath: &PathBuf, output_filepath: &PathBuf, seed: u64) -> anyhow::Result<()> {
     log::info!(
         "{}",
         format!(
             "This is {} version {}",
             "replace-ambiguities".italic(),
-            VERSION
+            env!("CARGO_PKG_VERSION")
         )
         .bold()
         .bright_purple()
     );
     log::info!("Command was run with a random seed = {}", seed);
-
-    let reader = fasta::Reader::from_file(input_filepath).expect("Could not open input file.");
-    let mut rng = oorandom::Rand32::new(seed);
-
-    let mut writer =
-        fasta::Writer::to_file(output_filepath).with_context(|| "Could not open output file")?;
 
     log::info!(
         "Reading sequences from {:?} and writing to {:?}.",
@@ -54,17 +64,9 @@ pub fn run(input_filepath: &PathBuf, output_filepath: &PathBuf, seed: u64) -> an
         output_filepath
     );
 
-    for record_result in reader.records() {
-        match record_result {
-            Ok(record) => {
-                let new_seq = replace_ambiguities(record.seq(), &mut rng)?;
-                writer.write(record.id(), None, new_seq.as_slice())?;
-            }
-            Err(_) => {
-                log::error!("Failed to read record from file.");
-            }
-        }
-    }
+    let sequences = load_fasta(input_filepath).context("Could not open input file.")?;
+    let new_sequences = replace_ambiguities_records(sequences, seed)?;
+    write_fasta_sequences(output_filepath, &new_sequences)?;
 
     log::info!("Done. Exiting.");
     Ok(())

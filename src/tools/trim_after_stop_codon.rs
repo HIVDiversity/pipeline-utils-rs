@@ -1,14 +1,9 @@
 use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
-use crate::utils::translate::{GAP_CHAR, STOP_CODONS};
-use anyhow::{Context, Result};
-use bio::io::fasta;
+use crate::utils::codon_tables::STOP_CODONS;
+use anyhow::Result;
 use colored::Colorize;
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use velcro::hash_map;
-
-const VERSION: &str = "0.1.0";
 
 fn trim_sequence(sequence: &Vec<u8>, include_stop_codon: bool) -> Result<Vec<u8>> {
     let first_stop_codon_index = sequence
@@ -29,7 +24,10 @@ fn trim_sequence(sequence: &Vec<u8>, include_stop_codon: bool) -> Result<Vec<u8>
     }
 }
 
-fn process_file(sequences: FastaRecords, include_stop_codon: bool) -> Result<FastaRecords> {
+pub(crate) fn process_file(
+    sequences: FastaRecords,
+    include_stop_codon: bool,
+) -> Result<FastaRecords> {
     let mut output_sequences = HashMap::<String, Vec<u8>>::with_capacity(sequences.len());
 
     for (seq_name, sequence) in sequences {
@@ -40,13 +38,10 @@ fn process_file(sequences: FastaRecords, include_stop_codon: bool) -> Result<Fas
     Ok(output_sequences)
 }
 
-
 pub fn run(input_file: &PathBuf, output_file: &PathBuf, include_stop_codon: bool) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
-
     log::info!(
         "{}",
-        format!("This is 'trim_after_stop_codon' version {}", VERSION)
+        format!("This is 'trim_after_stop_codon' version {}", env!("CARGO_PKG_VERSION"))
             .bold()
             .bright_yellow()
     );
@@ -82,7 +77,6 @@ mod tests {
         assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
     }
 
-
     #[test]
     fn test_trim_at_start_include_stop_codon() {
         let input = b"TAAGCTTTGCTA".to_vec();
@@ -109,7 +103,6 @@ mod tests {
         let obtained = trim_sequence(&input, false).unwrap();
         assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
     }
-
 
     #[test]
     fn test_trim_at_start_exclude_stop_codon() {

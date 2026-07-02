@@ -4,14 +4,10 @@ use colored::Colorize;
 use gb_io::reader::parse_file;
 use std::path::PathBuf;
 
-const VERSION: &str = "0.1.0";
-
 pub fn run(genbank_file: &PathBuf, output_file: &PathBuf, sequence_name: &String) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
-
     log::info!(
         "{}",
-        format!("This is {} version {}", "gb-extract".italic(), VERSION)
+        format!("This is {} version {}", "gb-extract".italic(), env!("CARGO_PKG_VERSION"))
             .bold()
             .bright_purple()
     );

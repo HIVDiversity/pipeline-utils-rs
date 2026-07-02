@@ -1,13 +1,9 @@
-use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences};
-use crate::utils::translate::GAP_CHAR;
+use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
+use crate::utils::codon_tables::GAP_CHAR;
 use anyhow::{Context, Result, anyhow};
 use colored::Colorize;
 use log;
-use std::collections::HashMap;
 use std::path::PathBuf;
-
-type FastaRecords = HashMap<String, Vec<u8>>;
-const VERSION: &str = "0.3.1";
 
 pub fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> {
     let gap_char = "-".as_bytes()[0];
@@ -37,7 +33,7 @@ pub fn reverse_translate(aa_seq: &Vec<u8>, nt_seq: &Vec<u8>) -> Result<Vec<u8>> 
     Ok(new_nt_seq)
 }
 
-fn process_sequences(
+pub fn process_sequences(
     aa_sequences: FastaRecords,
     nt_sequences: FastaRecords,
 ) -> Result<FastaRecords> {
@@ -89,13 +85,12 @@ fn process_sequences(
 }
 
 pub fn run(aa_filepath: &PathBuf, nt_filepath: &PathBuf, output_file_path: &PathBuf) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
     log::info!(
         "{}",
         format!(
             "This is {} version {}",
             "reverse-translate".italic(),
-            VERSION
+            env!("CARGO_PKG_VERSION")
         )
         .bold()
         .red()

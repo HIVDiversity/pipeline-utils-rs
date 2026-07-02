@@ -1,21 +1,11 @@
 use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
-use anyhow::{Context, Result};
+use anyhow::Result;
 
-use bio::bio_types::sequence::SequenceRead;
 use colored::Colorize;
-use log::warn;
 use polars::prelude::LazyFrame;
 use polars::prelude::*;
-use pyo3::impl_::pymethods::IterBaseKind;
-use rust_htslib::bam::ext::BamRecordExtensions;
-use rust_htslib::{bam, bam::Read, bam::Record};
 use std::collections::HashMap;
-use std::fs::File;
 use std::path::PathBuf;
-
-const VERSION: &str = "0.1.0";
-
-fn read_tsv() {}
 
 fn read_fasta_into_lazyframe(fasta_file: &PathBuf) -> Result<LazyFrame> {
     let records = load_fasta(fasta_file)?;
@@ -59,13 +49,9 @@ pub fn run(
     prepend: &Option<String>,
     output_dir: &PathBuf,
 ) -> Result<()> {
-    // Set up logging with the desired log level
-    simple_logger::SimpleLogger::new().env().init()?;
-
-    // Print information about this program
     log::info!(
         "{}",
-        format!("This is process-miniprot version {}", VERSION)
+        format!("This is process-miniprot version {}", env!("CARGO_PKG_VERSION"))
             .bold()
             .bright_green()
     );

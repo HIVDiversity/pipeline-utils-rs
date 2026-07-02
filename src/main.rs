@@ -1,12 +1,12 @@
-mod cli;
-mod tools;
-mod utils;
-
 use anyhow::Result;
 use clap::Parser;
-use cli::Commands;
+use purs::cli;
+use purs::cli::Commands;
+use purs::tools;
 
 fn main() -> Result<()> {
+    simple_logger::SimpleLogger::new().env().init()?;
+
     let cli = cli::Cli::parse();
 
     match cli.command {
@@ -60,7 +60,7 @@ fn main() -> Result<()> {
             output_file,
             seq_name,
         } => {
-            tools::extract_seq_from_gb::run(&input_file, &output_file, &seq_name)?;
+            tools::gb_extract::run(&input_file, &output_file, &seq_name)?;
         }
         Commands::TrimSam {
             input_file,

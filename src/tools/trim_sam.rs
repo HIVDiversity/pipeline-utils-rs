@@ -9,8 +9,6 @@ use rust_htslib::{bam, bam::Read, bam::Record};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-const VERSION: &str = "1.0.0";
-
 fn find_read_pos_from_ref_pos(read: &Record, ref_pos: i64) -> Option<i64> {
     for pair in read.aligned_pairs_full() {
         let current_query_pos = pair[0];
@@ -30,13 +28,9 @@ pub fn run(
     trim_from: i64,
     trim_to: i64,
 ) -> Result<()> {
-    // Set up logging with the desired log level
-    simple_logger::SimpleLogger::new().env().init()?;
-
-    // Print information about this program
     log::info!(
         "{}",
-        format!("This is trim_sam version {}", VERSION)
+        format!("This is trim_sam version {}", env!("CARGO_PKG_VERSION"))
             .bold()
             .bright_green()
     );

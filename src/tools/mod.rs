@@ -1,6 +1,6 @@
 pub mod collapse;
 pub mod expand;
-pub mod extract_seq_from_gb;
+pub mod gb_extract;
 pub mod get_consensus;
 pub mod process_miniprot;
 pub mod replace_ambiguities;

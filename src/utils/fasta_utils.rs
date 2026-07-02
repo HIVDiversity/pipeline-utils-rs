@@ -28,8 +28,6 @@ pub fn load_fasta(file_path: &PathBuf) -> Result<FastaRecords> {
     let mut sequences: FastaRecords = FastaRecords::new();
     let reader = fasta::Reader::from_file(file_path).expect("Could not open file.");
 
-    // let mut parsing_errors = 0;
-
     for result in reader.records() {
         let record = result.expect("This record is invalid and failed to parse.");
         let mut seq = record.seq().to_vec();

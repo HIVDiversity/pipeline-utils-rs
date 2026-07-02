@@ -1,22 +1,18 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta};
+use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
 use anyhow::{Context, Result};
-use bio::io::fasta;
 use colored::Colorize;
 use serde_json::from_reader;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::PathBuf;
-const VERSION: &str = "0.2.0";
 type NewToOldNameMapping = HashMap<String, Vec<String>>;
 
-fn uncollapse_and_write_sequences(
+pub fn uncollapse_sequences(
     collapsed_seqs: FastaRecords,
     name_mapping: NewToOldNameMapping,
-    output_file: &PathBuf,
     include_missing_seqs: bool,
-) -> Result<()> {
-    let mut writer = fasta::Writer::to_file(output_file)
-        .with_context(|| format!("Trying to write to file {:?}", output_file))?;
+) -> Result<FastaRecords> {
+    let mut expanded_seqs: FastaRecords = FastaRecords::with_capacity(collapsed_seqs.len());
 
     for (collapsed_seq_name, sequence) in collapsed_seqs {
         match name_mapping.get(&collapsed_seq_name) {
@@ -26,25 +22,18 @@ fn uncollapse_and_write_sequences(
                     &collapsed_seq_name
                 );
                 if include_missing_seqs {
-                    writer.write(&collapsed_seq_name, None, &sequence)?;
+                    expanded_seqs.insert(collapsed_seq_name, sequence);
                 }
             }
             Some(old_seq_names) => {
                 for old_seq_name in old_seq_names {
-                    writer
-                        .write(old_seq_name, None, &sequence)
-                        .with_context(|| {
-                            format!(
-                                "Trying to write sequence {:?} to {:?}",
-                                old_seq_name, output_file
-                            )
-                        })?
+                    expanded_seqs.insert(old_seq_name.clone(), sequence.clone());
                 }
             }
         }
     }
 
-    Ok(())
+    Ok(expanded_seqs)
 }
 
 pub fn run(
@@ -53,10 +42,9 @@ pub fn run(
     output_file: &PathBuf,
     include_missing_seqs: bool,
 ) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
     log::info!(
         "{}",
-        format!("This is {} version {}", "expand".italic(), VERSION)
+        format!("This is {} version {}", "expand".italic(), env!("CARGO_PKG_VERSION"))
             .bold()
             .bright_magenta()
     );
@@ -67,12 +55,10 @@ pub fn run(
     let name_mapping: NewToOldNameMapping = from_reader(File::open(name_mapping_file)?)
         .with_context(|| format!("Failed to read name mapping from {:?}", name_mapping_file))?;
 
-    uncollapse_and_write_sequences(
-        collapsed_sequences,
-        name_mapping,
-        output_file,
-        include_missing_seqs,
-    )?;
+    let expanded_sequences =
+        uncollapse_sequences(collapsed_sequences, name_mapping, include_missing_seqs)?;
+
+    write_fasta_sequences(output_file, &expanded_sequences)?;
 
     Ok(())
 }
