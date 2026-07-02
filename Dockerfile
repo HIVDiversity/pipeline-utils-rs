@@ -30,7 +30,7 @@ RUN cargo chef cook --recipe-path recipe.json
 COPY . .
 RUN cargo build --release --all-features
 
-FROM debian:bookworm AS release
+FROM debian:trixie AS release
 
 RUN apt-get update && apt-get install -y procps
 
