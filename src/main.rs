@@ -62,6 +62,7 @@ fn main() -> Result<()> {
         } => {
             tools::gb_extract::run(&input_file, &output_file, &seq_name)?;
         }
+        #[cfg(feature = "trim-sam")]
         Commands::TrimSam {
             input_file,
             output_file,
@@ -77,6 +78,7 @@ fn main() -> Result<()> {
         } => {
             tools::replace_ambiguities::run(&input_file, &output_file, seed)?;
         }
+        #[cfg(feature = "process-miniprot")]
         Commands::ProcessMiniprot {
             input_file,
             paf_file,
@@ -84,7 +86,7 @@ fn main() -> Result<()> {
             output_dir,
         } => {
             tools::process_miniprot::run(&input_file, &paf_file, &prepend, &output_dir)?;
-        },
+        }
         Commands::TrimAfterStop {
             input_file,
             output_file,

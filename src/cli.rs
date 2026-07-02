@@ -159,6 +159,7 @@ pub enum Commands {
         seq_name: String,
     },
 
+    #[cfg(feature = "trim-sam")]
     /// Trim a SAM file using coordinates on the reference sequence.
     TrimSam {
         /// The input SAM file
@@ -188,6 +189,7 @@ pub enum Commands {
         seed: u64,
     },
 
+    #[cfg(feature = "process-miniprot")]
     /// Given PAF output from miniprot, return trimmed templates from a FASTA file.
     ProcessMiniprot {
         /// The input FASTA file containing nucleotide sequences
