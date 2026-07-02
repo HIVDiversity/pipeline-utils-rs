@@ -19,7 +19,7 @@ push-docker:
 # Runs an interactive docker container with the current wd mounted at /data
 [group('docker')]
 run-docker-it tag=latest-tag:
-    sudo docker run --rm -it -v ./:/data dlejeune/{{ image-name }}:{{ tag }} bash
+    sudo docker run --rm -it -v ./:/data {{ image-name }}:{{ tag }} bash
 
 # Builds and pushed the most recently tagged branch in a docker container
 [group('docker')]

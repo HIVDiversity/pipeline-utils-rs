@@ -13,8 +13,14 @@ RUN cargo install cargo-chef
 # Copy the build plan from the previous Docker stage
 COPY --from=planner /app/recipe.json recipe.json
 
-RUN apt-get update && apt-get install -y lsb-release gnupg &&\
-    apt-get clean all && bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+RUN apt-get update && apt-get install -y lsb-release gnupg\
+                                                      clang \
+                                                      libclang-dev \
+                                                      llvm \
+                                                      cmake \
+                                                      build-essential \
+                                                      && rm -rf /var/lib/apt/lists/*
+
 
 # Build dependencies - this layer is cached as long as `recipe.json`
 # doesn't change.
@@ -22,7 +28,7 @@ RUN cargo chef cook --recipe-path recipe.json
 
 # Build the whole project
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --all-features
 
 FROM debian:bookworm AS release
 
