@@ -1,4 +1,4 @@
-FROM rust:1.88.0 AS planner
+FROM rust:1.93.0 AS planner
 RUN cargo install cargo-chef
 
 WORKDIR /app
@@ -7,13 +7,13 @@ COPY . .
 # Prepare a build plan ("recipe")
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM rust:1.88.0 AS builder
+FROM rust:1.93.0 AS builder
 RUN cargo install cargo-chef
 
 # Copy the build plan from the previous Docker stage
 COPY --from=planner /app/recipe.json recipe.json
 
-RUN apt-get update && apt-get install -y lsb-release software-properties-common gnupg &&\
+RUN apt-get update && apt-get install -y lsb-release gnupg &&\
     apt-get clean all && bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
 # Build dependencies - this layer is cached as long as `recipe.json`
