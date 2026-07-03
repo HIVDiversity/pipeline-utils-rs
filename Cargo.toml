@@ -1,8 +1,17 @@
 [package]
 name = "pipeline-utils-rs"
+description = "A (quasi-random) collection of tools to manipulate biological files (primarily FASTA/MSA files)."
 version = "4.1.0"
 edition = "2024"
 rust-version = "1.93.0"
+repository = "https://github.com/HIVDiversity/pipeline-utils-rs"
+authors = ["Daniel Le Jeune"]
+
+[package.metadata.wix]
+upgrade-guid = "50FB1950-1975-40A8-81E7-E4C9FBE22FDD"
+path-guid = "02FA8D62-CF1B-4CF7-95B5-22CA0FD41565"
+license = false
+eula = false
 
 [dependencies]
 bio = "3.0.0"
@@ -34,3 +43,8 @@ crate-type = ["cdylib", "rlib"]
 default = []
 trim-sam = ["dep:rust-htslib"]
 process-miniprot = ["dep:polars"]
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
