@@ -2156,6 +2156,7 @@ dependencies = [
  "bio",
  "clap",
  "colored",
+ "csv",
  "gb-io",
  "itertools 0.14.0",
  "log",

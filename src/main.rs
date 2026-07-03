@@ -55,6 +55,19 @@ fn main() -> Result<()> {
         } => {
             tools::expand::run(&input_file, &name_input_file, &output_file, include_missing)?;
         }
+        Commands::FilterByLength {
+            input_file,
+            output_file,
+            report_file,
+            threshold,
+        } => {
+            tools::filter_by_length::run(
+                &input_file,
+                &output_file,
+                report_file.as_ref(),
+                (&threshold).into(),
+            )?;
+        }
         Commands::GbExtract {
             input_file,
             output_file,

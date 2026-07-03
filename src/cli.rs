@@ -1,3 +1,4 @@
+use crate::tools::filter_by_length::LengthThreshold;
 use crate::tools::get_consensus::AmbiguityMode;
 use crate::utils::translate::TranslationOptions;
 use clap::builder::styling;
@@ -65,6 +66,31 @@ impl From<&TranslateCliOptions> for TranslationOptions {
     }
 }
 
+#[derive(Args)]
+#[group(required = true, multiple = false)]
+pub struct LengthThresholdArgs {
+    /// Keep sequences with length >= this fixed value
+    #[arg(short = 'l', long)]
+    pub length: Option<usize>,
+    /// Keep sequences with length >= the median length of the input sequences
+    #[arg(long)]
+    pub median: bool,
+    /// Keep sequences with length >= the mean length of the input sequences
+    #[arg(long)]
+    pub mean: bool,
+}
+
+impl From<&LengthThresholdArgs> for LengthThreshold {
+    fn from(opts: &LengthThresholdArgs) -> Self {
+        match (opts.length, opts.median, opts.mean) {
+            (Some(l), false, false) => LengthThreshold::Fixed(l),
+            (None, true, false) => LengthThreshold::Median,
+            (None, false, true) => LengthThreshold::Mean,
+            _ => unreachable!("clap ArgGroup guarantees exactly one of length/median/mean"),
+        }
+    }
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Remove non-unique sequences. Output contains only unique sequences.
@@ -100,6 +126,22 @@ pub enum Commands {
         /// Include sequences not present in the name mapping file
         #[arg(short = 'm', long, default_value_t = false)]
         include_missing: bool,
+    },
+
+    /// Filter sequences by length, keeping only those at or above a threshold
+    /// (a fixed length, or the median/mean length of the input sequences).
+    FilterByLength {
+        /// The input FASTA file containing unaligned sequences
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write sequences meeting the length threshold to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Optional CSV file reporting each sequence's name, length, and filter result
+        #[arg(short = 'r', long)]
+        report_file: Option<PathBuf>,
+        #[command(flatten)]
+        threshold: LengthThresholdArgs,
     },
 
     /// Extract a feature from a GenBank file and write it to a FASTA file.
