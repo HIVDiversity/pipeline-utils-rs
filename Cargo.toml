@@ -6,6 +6,7 @@ edition = "2024"
 rust-version = "1.93.0"
 repository = "https://github.com/HIVDiversity/pipeline-utils-rs"
 authors = ["Daniel Le Jeune"]
+license-file = "LICENSE"
 
 [package.metadata.wix]
 upgrade-guid = "50FB1950-1975-40A8-81E7-E4C9FBE22FDD"
