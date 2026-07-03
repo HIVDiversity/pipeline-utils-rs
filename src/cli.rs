@@ -206,7 +206,7 @@ pub enum Commands {
         output_dir: PathBuf,
     },
 
-    /// Trims the nucleotides after the first stop codon in a sequence
+    /// Removes columns containing a certain percentage of gaps (100% by default).
     TrimAfterStop {
         /// The input FASTA file
         #[arg(short = 'i', long)]
@@ -217,5 +217,20 @@ pub enum Commands {
         /// Include the stop codon in the output
         #[arg(long, default_value_t = true)]
         include_stop: bool,
+    },
+
+    /// Trims the nucleotides after the first stop codon in a sequence
+    StripGapCols {
+        /// The input aligned FASTA file. All sequences must have the same length.
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+
+        /// The output FASTA file to write the stripped sequences to.
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+
+        /// The minimum percentage of gaps (as a whole number) that a column must have in order to be stripped.
+        #[arg(long, default_value_t = 100)]
+        min_gap_pct: usize,
     },
 }

@@ -10,4 +10,4 @@ pub mod translate;
 pub mod trim_after_stop_codon;
 #[cfg(feature = "trim-sam")]
 pub mod trim_sam;
-mod strip_gap_cols;
+pub mod strip_gap_cols;

@@ -94,6 +94,13 @@ fn main() -> Result<()> {
         } => {
             tools::trim_after_stop_codon::run(&input_file, &output_file, include_stop)?;
         }
+        Commands::StripGapCols {
+            input_file,
+            output_file,
+            min_gap_pct
+        } => {
+            tools::strip_gap_cols::run(&input_file, &output_file, min_gap_pct)?;
+        }
     }
 
     Ok(())
