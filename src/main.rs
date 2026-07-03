@@ -59,12 +59,14 @@ fn main() -> Result<()> {
             input_file,
             output_file,
             report_file,
+            rejected_seq_output,
             threshold,
         } => {
             tools::filter_by_length::run(
                 &input_file,
                 &output_file,
                 report_file.as_ref(),
+                rejected_seq_output.as_ref(),
                 (&threshold).into(),
             )?;
         }

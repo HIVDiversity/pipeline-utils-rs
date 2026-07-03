@@ -38,7 +38,7 @@ fn threshold_value(lengths: &[usize], threshold: &LengthThreshold) -> f64 {
 pub(crate) fn filter_by_length(
     sequences: FastaRecords,
     threshold: LengthThreshold,
-) -> Result<(FastaRecords, Vec<FilterReportRow>)> {
+) -> Result<(FastaRecords, FastaRecords, Vec<FilterReportRow>)> {
     if sequences.is_empty() {
         bail!("No sequences were provided.")
     }
@@ -46,7 +46,8 @@ pub(crate) fn filter_by_length(
     let lengths: Vec<usize> = sequences.values().map(|seq| seq.len()).collect();
     let threshold_value = threshold_value(&lengths, &threshold);
 
-    let mut output_sequences = FastaRecords::with_capacity(sequences.len());
+    let mut kept_sequences = FastaRecords::with_capacity(sequences.len());
+    let mut rejected_sequences = FastaRecords::new();
     let mut report_rows = Vec::with_capacity(sequences.len());
 
     for (seq_name, seq) in sequences {
@@ -60,13 +61,15 @@ pub(crate) fn filter_by_length(
         });
 
         if kept {
-            output_sequences.insert(seq_name, seq);
+            kept_sequences.insert(seq_name, seq);
+        } else {
+            rejected_sequences.insert(seq_name, seq);
         }
     }
 
     report_rows.sort_unstable_by(|a, b| a.seq_name.cmp(&b.seq_name));
 
-    Ok((output_sequences, report_rows))
+    Ok((kept_sequences, rejected_sequences, report_rows))
 }
 
 fn write_report(report_file: &PathBuf, rows: &[FilterReportRow]) -> Result<()> {
@@ -89,6 +92,7 @@ pub fn run(
     input_file: &PathBuf,
     output_file: &PathBuf,
     report_file: Option<&PathBuf>,
+    rejected_seq_output: Option<&PathBuf>,
     threshold: LengthThreshold,
 ) -> Result<()> {
     log::info!(
@@ -103,9 +107,14 @@ pub fn run(
 
     log::info!("Reading input file {:?}", input_file);
     let sequences = load_fasta(input_file)?;
-    let (filtered_sequences, report_rows) = filter_by_length(sequences, threshold)?;
+    let (kept_sequences, rejected_sequences, report_rows) = filter_by_length(sequences, threshold)?;
 
-    write_fasta_sequences(output_file, &filtered_sequences)?;
+    write_fasta_sequences(output_file, &kept_sequences)?;
+
+    if let Some(rejected_seq_output) = rejected_seq_output {
+        log::info!("Writing rejected sequences to {:?}", rejected_seq_output);
+        write_fasta_sequences(rejected_seq_output, &rejected_sequences)?;
+    }
 
     if let Some(report_file) = report_file {
         log::info!("Writing filter report to {:?}", report_file);
@@ -128,12 +137,15 @@ mod tests {
             "C".to_string(): vec![b'A'; 15],
         );
 
-        let (output, report) = filter_by_length(input_seqs, LengthThreshold::Fixed(10))?;
+        let (output, rejected, report) = filter_by_length(input_seqs, LengthThreshold::Fixed(10))?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
         assert!(output.contains_key("C"));
         assert!(!output.contains_key("A"));
+
+        assert_eq!(rejected.len(), 1);
+        assert!(rejected.contains_key("A"));
 
         assert_eq!(report.len(), 3);
         assert_eq!(report[0].seq_name, "A");
@@ -155,7 +167,7 @@ mod tests {
         );
 
         // Median length is 10.
-        let (output, _) = filter_by_length(input_seqs, LengthThreshold::Median)?;
+        let (output, _, _) = filter_by_length(input_seqs, LengthThreshold::Median)?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
@@ -174,7 +186,7 @@ mod tests {
         );
 
         // Median length is (10 + 20) / 2 = 15.
-        let (output, _) = filter_by_length(input_seqs, LengthThreshold::Median)?;
+        let (output, _, _) = filter_by_length(input_seqs, LengthThreshold::Median)?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("C"));
@@ -192,7 +204,7 @@ mod tests {
         );
 
         // Mean length is 10.
-        let (output, _) = filter_by_length(input_seqs, LengthThreshold::Mean)?;
+        let (output, _, _) = filter_by_length(input_seqs, LengthThreshold::Mean)?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));

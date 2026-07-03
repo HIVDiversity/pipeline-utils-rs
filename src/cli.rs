@@ -140,6 +140,9 @@ pub enum Commands {
         /// Optional CSV file reporting each sequence's name, length, and filter result
         #[arg(short = 'r', long)]
         report_file: Option<PathBuf>,
+        /// Optional FASTA file to write sequences that did not meet the length threshold to
+        #[arg(long)]
+        rejected_seq_output: Option<PathBuf>,
         #[command(flatten)]
         threshold: LengthThresholdArgs,
     },

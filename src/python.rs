@@ -143,7 +143,11 @@ mod purs {
         length: Option<usize>,
         median: bool,
         mean: bool,
-    ) -> PyResult<(HashMap<String, String>, Vec<(String, usize, bool)>)> {
+    ) -> PyResult<(
+        HashMap<String, String>,
+        HashMap<String, String>,
+        Vec<(String, usize, bool)>,
+    )> {
         let threshold = match (length, median, mean) {
             (Some(l), false, false) => tools::filter_by_length::LengthThreshold::Fixed(l),
             (None, true, false) => tools::filter_by_length::LengthThreshold::Median,
@@ -155,14 +159,18 @@ mod purs {
             }
         };
 
-        let (records, report) =
+        let (records, rejected, report) =
             tools::filter_by_length::filter_by_length(dict_to_records(seqs), threshold)
                 .map_err(to_pyerr)?;
         let report_rows = report
             .into_iter()
             .map(|r| (r.seq_name, r.length, r.kept))
             .collect();
-        Ok((records_to_dict(records)?, report_rows))
+        Ok((
+            records_to_dict(records)?,
+            records_to_dict(rejected)?,
+            report_rows,
+        ))
     }
 
     #[pyfunction]
