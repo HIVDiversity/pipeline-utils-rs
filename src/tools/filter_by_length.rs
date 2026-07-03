@@ -1,7 +1,9 @@
 use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
 use anyhow::{bail, Result};
 use colored::Colorize;
+use std::fmt;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 pub enum LengthThreshold {
     Fixed(usize),
@@ -9,10 +11,59 @@ pub enum LengthThreshold {
     Mean,
 }
 
-pub(crate) struct FilterReportRow {
-    pub(crate) seq_name: String,
-    pub(crate) length: usize,
-    pub(crate) kept: bool,
+/// A margin around a center length, expressed either as an absolute number of
+/// bases or as a percentage of the center value (e.g. "20" vs "20%").
+#[derive(Debug, Clone, Copy)]
+pub enum Tolerance {
+    Absolute(f64),
+    Percent(f64),
+}
+
+impl Tolerance {
+    /// Resolve this tolerance to an absolute number of bases, given the center
+    /// length it is relative to.
+    fn resolve(&self, center: f64) -> f64 {
+        match self {
+            Tolerance::Absolute(bases) => *bases,
+            Tolerance::Percent(pct) => center * pct / 100.0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ToleranceParseError(String);
+
+impl fmt::Display for ToleranceParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for ToleranceParseError {}
+
+impl FromStr for Tolerance {
+    type Err = ToleranceParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.strip_suffix('%') {
+            Some(pct) => pct
+                .parse::<f64>()
+                .map(Tolerance::Percent)
+                .map_err(|e| ToleranceParseError(format!("invalid percent tolerance {s:?}: {e}"))),
+            None => s
+                .parse::<f64>()
+                .map(Tolerance::Absolute)
+                .map_err(|e| ToleranceParseError(format!("invalid tolerance {s:?}: {e}"))),
+        }
+    }
+}
+
+/// A length filter: a center (fixed/median/mean), optionally widened below and/or
+/// above by a tolerance, producing an inclusive `[min, max]` acceptance range.
+pub struct LengthRange {
+    pub center: LengthThreshold,
+    pub min_tolerance: Option<Tolerance>,
+    pub max_tolerance: Option<Tolerance>,
 }
 
 fn threshold_value(lengths: &[usize], threshold: &LengthThreshold) -> f64 {
@@ -35,16 +86,31 @@ fn threshold_value(lengths: &[usize], threshold: &LengthThreshold) -> f64 {
     }
 }
 
+pub(crate) struct FilterReportRow {
+    pub(crate) seq_name: String,
+    pub(crate) length: usize,
+    pub(crate) kept: bool,
+}
+
 pub(crate) fn filter_by_length(
     sequences: FastaRecords,
-    threshold: LengthThreshold,
+    range: LengthRange,
 ) -> Result<(FastaRecords, FastaRecords, Vec<FilterReportRow>)> {
     if sequences.is_empty() {
         bail!("No sequences were provided.")
     }
 
     let lengths: Vec<usize> = sequences.values().map(|seq| seq.len()).collect();
-    let threshold_value = threshold_value(&lengths, &threshold);
+    let center_value = threshold_value(&lengths, &range.center);
+    let lower_bound = range
+        .min_tolerance
+        .map_or(center_value, |t| (center_value - t.resolve(center_value)).max(0.0));
+    let upper_bound = range.max_tolerance.map(|t| center_value + t.resolve(center_value));
+
+    log::info!(
+        "Center length: {center_value}, acceptance range: [{lower_bound}, {}]",
+        upper_bound.map_or("inf".to_string(), |u| u.to_string())
+    );
 
     let mut kept_sequences = FastaRecords::with_capacity(sequences.len());
     let mut rejected_sequences = FastaRecords::new();
@@ -52,7 +118,8 @@ pub(crate) fn filter_by_length(
 
     for (seq_name, seq) in sequences {
         let length = seq.len();
-        let kept = length as f64 >= threshold_value;
+        let length_f = length as f64;
+        let kept = length_f >= lower_bound && upper_bound.is_none_or(|u| length_f <= u);
 
         report_rows.push(FilterReportRow {
             seq_name: seq_name.clone(),
@@ -93,7 +160,7 @@ pub fn run(
     output_file: &PathBuf,
     report_file: Option<&PathBuf>,
     rejected_seq_output: Option<&PathBuf>,
-    threshold: LengthThreshold,
+    range: LengthRange,
 ) -> Result<()> {
     log::info!(
         "{}",
@@ -107,7 +174,7 @@ pub fn run(
 
     log::info!("Reading input file {:?}", input_file);
     let sequences = load_fasta(input_file)?;
-    let (kept_sequences, rejected_sequences, report_rows) = filter_by_length(sequences, threshold)?;
+    let (kept_sequences, rejected_sequences, report_rows) = filter_by_length(sequences, range)?;
 
     write_fasta_sequences(output_file, &kept_sequences)?;
 
@@ -129,6 +196,14 @@ mod tests {
     use super::*;
     use velcro::hash_map;
 
+    fn center_only(center: LengthThreshold) -> LengthRange {
+        LengthRange {
+            center,
+            min_tolerance: None,
+            max_tolerance: None,
+        }
+    }
+
     #[test]
     fn test_fixed_threshold() -> Result<()> {
         let input_seqs: FastaRecords = hash_map!(
@@ -137,7 +212,8 @@ mod tests {
             "C".to_string(): vec![b'A'; 15],
         );
 
-        let (output, rejected, report) = filter_by_length(input_seqs, LengthThreshold::Fixed(10))?;
+        let (output, rejected, report) =
+            filter_by_length(input_seqs, center_only(LengthThreshold::Fixed(10)))?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
@@ -167,7 +243,7 @@ mod tests {
         );
 
         // Median length is 10.
-        let (output, _, _) = filter_by_length(input_seqs, LengthThreshold::Median)?;
+        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Median))?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
@@ -186,7 +262,7 @@ mod tests {
         );
 
         // Median length is (10 + 20) / 2 = 15.
-        let (output, _, _) = filter_by_length(input_seqs, LengthThreshold::Median)?;
+        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Median))?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("C"));
@@ -204,7 +280,7 @@ mod tests {
         );
 
         // Mean length is 10.
-        let (output, _, _) = filter_by_length(input_seqs, LengthThreshold::Mean)?;
+        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Mean))?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
@@ -216,6 +292,62 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let input_seqs: FastaRecords = FastaRecords::new();
-        assert!(filter_by_length(input_seqs, LengthThreshold::Fixed(10)).is_err());
+        assert!(filter_by_length(input_seqs, center_only(LengthThreshold::Fixed(10))).is_err());
+    }
+
+    #[test]
+    fn test_min_tolerance_absolute() -> Result<()> {
+        let input_seqs: FastaRecords = hash_map!(
+            "A".to_string(): vec![b'A'; 75],
+            "B".to_string(): vec![b'A'; 80],
+            "C".to_string(): vec![b'A'; 100],
+        );
+
+        // length 100, min-tolerance 20 -> keep [80, inf)
+        let (output, rejected, _) = filter_by_length(
+            input_seqs,
+            LengthRange {
+                center: LengthThreshold::Fixed(100),
+                min_tolerance: Some(Tolerance::Absolute(20.0)),
+                max_tolerance: None,
+            },
+        )?;
+
+        assert_eq!(output.len(), 2);
+        assert!(output.contains_key("B"));
+        assert!(output.contains_key("C"));
+        assert_eq!(rejected.len(), 1);
+        assert!(rejected.contains_key("A"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_symmetric_percent_tolerance_around_median() -> Result<()> {
+        let input_seqs: FastaRecords = hash_map!(
+            "A".to_string(): vec![b'A'; 50],
+            "B".to_string(): vec![b'A'; 100],
+            "C".to_string(): vec![b'A'; 105],
+            "D".to_string(): vec![b'A'; 150],
+        );
+
+        // Median length is (100 + 105) / 2 = 102.5, 10% tolerance -> keep [92.25, 112.75]
+        let (output, rejected, _) = filter_by_length(
+            input_seqs,
+            LengthRange {
+                center: LengthThreshold::Median,
+                min_tolerance: Some(Tolerance::Percent(10.0)),
+                max_tolerance: Some(Tolerance::Percent(10.0)),
+            },
+        )?;
+
+        assert_eq!(output.len(), 2);
+        assert!(output.contains_key("B"));
+        assert!(output.contains_key("C"));
+        assert_eq!(rejected.len(), 2);
+        assert!(rejected.contains_key("A"));
+        assert!(rejected.contains_key("D"));
+
+        Ok(())
     }
 }

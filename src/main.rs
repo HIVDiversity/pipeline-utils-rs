@@ -61,13 +61,14 @@ fn main() -> Result<()> {
             report_file,
             rejected_seq_output,
             threshold,
+            tolerance,
         } => {
             tools::filter_by_length::run(
                 &input_file,
                 &output_file,
                 report_file.as_ref(),
                 rejected_seq_output.as_ref(),
-                (&threshold).into(),
+                (&threshold, &tolerance).into(),
             )?;
         }
         Commands::GbExtract {
