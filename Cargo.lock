@@ -2150,7 +2150,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
 name = "pipeline-utils-rs"
-version = "4.1.1"
+version = "4.2.0"
 dependencies = [
  "anyhow",
  "bio",
@@ -2165,7 +2165,6 @@ dependencies = [
  "polars",
  "pyo3",
  "rand 0.9.4",
- "rayon",
  "rust-htslib",
  "serde_json",
  "simple_logger",

@@ -24,11 +24,11 @@ RUN apt-get update && apt-get install -y lsb-release gnupg\
 
 # Build dependencies - this layer is cached as long as `recipe.json`
 # doesn't change.
-RUN cargo chef cook --recipe-path recipe.json
+RUN cargo chef cook --release --features trim-sam,process-miniprot --recipe-path recipe.json
 
 # Build the whole project
 COPY . .
-RUN cargo build --release --all-features
+RUN cargo build --release --features trim-sam,process-miniprot
 
 FROM debian:trixie AS release
 
