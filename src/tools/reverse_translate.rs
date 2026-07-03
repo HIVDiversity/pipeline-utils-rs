@@ -1,6 +1,6 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
 use crate::utils::codon_tables::GAP_CHAR;
-use anyhow::{Context, Result, anyhow};
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
+use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
 use log;
 use std::path::PathBuf;

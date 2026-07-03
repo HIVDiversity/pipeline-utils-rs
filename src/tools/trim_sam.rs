@@ -1,4 +1,4 @@
-use crate::utils::fasta_utils::{FastaRecords, write_fasta_sequences};
+use crate::utils::fasta_utils::{write_fasta_sequences, FastaRecords};
 use anyhow::{Context, Result};
 
 use bio::bio_types::sequence::SequenceRead;

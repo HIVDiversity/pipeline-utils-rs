@@ -1,5 +1,5 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
 use crate::utils::codon_tables::GAP_CHAR;
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
 use anyhow::Result;
 use colored::Colorize;
 use std::collections::HashMap;

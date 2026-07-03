@@ -233,5 +233,4 @@ pub enum Commands {
         #[arg(short = 't', long)]
         trim_to: i64,
     },
-
 }

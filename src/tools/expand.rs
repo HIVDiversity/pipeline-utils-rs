@@ -1,4 +1,4 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use serde_json::from_reader;
@@ -44,9 +44,13 @@ pub fn run(
 ) -> Result<()> {
     log::info!(
         "{}",
-        format!("This is {} version {}", "expand".italic(), env!("CARGO_PKG_VERSION"))
-            .bold()
-            .bright_magenta()
+        format!(
+            "This is {} version {}",
+            "expand".italic(),
+            env!("CARGO_PKG_VERSION")
+        )
+        .bold()
+        .bright_magenta()
     );
 
     let collapsed_sequences = load_fasta(input_file)

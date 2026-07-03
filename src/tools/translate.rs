@@ -1,5 +1,5 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
-use crate::utils::translate::{TranslationOptions, translate};
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
+use crate::utils::translate::{translate, TranslationOptions};
 use anyhow::Result;
 use colored::Colorize;
 use std::path::PathBuf;
@@ -26,9 +26,13 @@ pub fn run(
 ) -> Result<()> {
     log::info!(
         "{}",
-        format!("This is {} version {}", "translate".italic(), env!("CARGO_PKG_VERSION"))
-            .bold()
-            .bright_purple()
+        format!(
+            "This is {} version {}",
+            "translate".italic(),
+            env!("CARGO_PKG_VERSION")
+        )
+        .bold()
+        .bright_purple()
     );
     log::info!(
         "Command was run with the following options:\n{}",

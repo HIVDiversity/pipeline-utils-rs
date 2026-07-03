@@ -1,4 +1,4 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
 use anyhow::Result;
 
 use colored::Colorize;
@@ -51,9 +51,12 @@ pub fn run(
 ) -> Result<()> {
     log::info!(
         "{}",
-        format!("This is process-miniprot version {}", env!("CARGO_PKG_VERSION"))
-            .bold()
-            .bright_green()
+        format!(
+            "This is process-miniprot version {}",
+            env!("CARGO_PKG_VERSION")
+        )
+        .bold()
+        .bright_green()
     );
 
     let paf_schema: Schema = Schema::from_iter(vec![

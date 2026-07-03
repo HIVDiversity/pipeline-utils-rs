@@ -1,5 +1,5 @@
 use crate::utils;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use bio::io::fasta;
 use clap::ValueEnum;
 use colored::Colorize;
@@ -129,9 +129,12 @@ pub fn run(
 ) -> Result<()> {
     log::info!(
         "{}",
-        format!("This is get-consensus version {}", env!("CARGO_PKG_VERSION"))
-            .bold()
-            .bright_green()
+        format!(
+            "This is get-consensus version {}",
+            env!("CARGO_PKG_VERSION")
+        )
+        .bold()
+        .bright_green()
     );
 
     log::info!("Reading input FASTA file: {:?}", input_seqs_aligned);

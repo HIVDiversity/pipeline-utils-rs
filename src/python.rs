@@ -95,8 +95,8 @@ mod purs {
             drop_incomplete_codons,
         };
 
-        let translated =
-            tools::translate::translate_records(dict_to_records(seqs), &options).map_err(to_pyerr)?;
+        let translated = tools::translate::translate_records(dict_to_records(seqs), &options)
+            .map_err(to_pyerr)?;
         records_to_dict(translated)
     }
 
@@ -143,8 +143,8 @@ mod purs {
         seq_prefix: String,
         strip_gaps: bool,
     ) -> PyResult<(HashMap<String, String>, HashMap<String, Vec<String>>)> {
-        let collapsed =
-            tools::collapse::collapse_sequences(dict_to_records(seqs), strip_gaps).map_err(to_pyerr)?;
+        let collapsed = tools::collapse::collapse_sequences(dict_to_records(seqs), strip_gaps)
+            .map_err(to_pyerr)?;
         let (records, name_mapping) =
             tools::collapse::build_collapsed_output(collapsed, &seq_prefix);
         Ok((records_to_dict(records)?, name_mapping))

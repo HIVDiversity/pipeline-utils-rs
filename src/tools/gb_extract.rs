@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use bio::io::fasta;
 use colored::Colorize;
 use gb_io::reader::parse_file;
@@ -7,9 +7,13 @@ use std::path::PathBuf;
 pub fn run(genbank_file: &PathBuf, output_file: &PathBuf, sequence_name: &String) -> Result<()> {
     log::info!(
         "{}",
-        format!("This is {} version {}", "gb-extract".italic(), env!("CARGO_PKG_VERSION"))
-            .bold()
-            .bright_purple()
+        format!(
+            "This is {} version {}",
+            "gb-extract".italic(),
+            env!("CARGO_PKG_VERSION")
+        )
+        .bold()
+        .bright_purple()
     );
 
     log::info!("Reading file {:?}", genbank_file);

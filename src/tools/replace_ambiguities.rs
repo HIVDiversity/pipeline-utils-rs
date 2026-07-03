@@ -1,5 +1,5 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
 use crate::utils::codon_tables::AMBIGUOUS_NT_LOOKUP;
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
 use anyhow::Context;
 use colored::Colorize;
 use itertools::Itertools;

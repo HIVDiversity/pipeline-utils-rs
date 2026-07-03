@@ -1,5 +1,5 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta, write_fasta_sequences};
 use crate::utils::codon_tables::STOP_CODONS;
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
 use anyhow::Result;
 use colored::Colorize;
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ fn trim_sequence(sequence: &Vec<u8>, include_stop_codon: bool) -> Result<Vec<u8>
         .position(|codon| STOP_CODONS.contains(<&[u8; 3]>::try_from(codon).unwrap_or(&[0; 3])));
 
     match first_stop_codon_index {
-        None => { Ok(sequence.clone()) }
+        None => Ok(sequence.clone()),
         Some(index) => {
             let trim_index = if include_stop_codon {
                 (index + 1) * 3
@@ -41,9 +41,12 @@ pub(crate) fn process_file(
 pub fn run(input_file: &PathBuf, output_file: &PathBuf, include_stop_codon: bool) -> Result<()> {
     log::info!(
         "{}",
-        format!("This is 'trim_after_stop_codon' version {}", env!("CARGO_PKG_VERSION"))
-            .bold()
-            .bright_yellow()
+        format!(
+            "This is 'trim_after_stop_codon' version {}",
+            env!("CARGO_PKG_VERSION")
+        )
+        .bold()
+        .bright_yellow()
     );
 
     log::info!("Reading input file {:?}", input_file);
@@ -65,7 +68,10 @@ mod tests {
         let expected = b"CATAATGTTTGGGCTACACATGCCTGTGTA".to_vec();
 
         let obtained = trim_sequence(&input, false).unwrap();
-        assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
+        assert_eq!(
+            String::from_utf8(obtained).unwrap(),
+            String::from_utf8(expected).unwrap()
+        );
     }
 
     #[test]
@@ -74,7 +80,10 @@ mod tests {
         let expected = b"GCTTTGCTATAA".to_vec();
 
         let obtained = trim_sequence(&input, true).unwrap();
-        assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
+        assert_eq!(
+            String::from_utf8(obtained).unwrap(),
+            String::from_utf8(expected).unwrap()
+        );
     }
 
     #[test]
@@ -83,7 +92,10 @@ mod tests {
         let expected = b"TAA".to_vec();
 
         let obtained = trim_sequence(&input, true).unwrap();
-        assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
+        assert_eq!(
+            String::from_utf8(obtained).unwrap(),
+            String::from_utf8(expected).unwrap()
+        );
     }
 
     #[test]
@@ -92,7 +104,10 @@ mod tests {
         let expected = b"GAAGGAACAGATAGGATTATTGA".to_vec();
 
         let obtained = trim_sequence(&input, true).unwrap();
-        assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
+        assert_eq!(
+            String::from_utf8(obtained).unwrap(),
+            String::from_utf8(expected).unwrap()
+        );
     }
 
     #[test]
@@ -101,7 +116,10 @@ mod tests {
         let expected = b"GCTTTGCTA".to_vec();
 
         let obtained = trim_sequence(&input, false).unwrap();
-        assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
+        assert_eq!(
+            String::from_utf8(obtained).unwrap(),
+            String::from_utf8(expected).unwrap()
+        );
     }
 
     #[test]
@@ -110,6 +128,9 @@ mod tests {
         let expected = b"".to_vec();
 
         let obtained = trim_sequence(&input, false).unwrap();
-        assert_eq!(String::from_utf8(obtained).unwrap(), String::from_utf8(expected).unwrap());
+        assert_eq!(
+            String::from_utf8(obtained).unwrap(),
+            String::from_utf8(expected).unwrap()
+        );
     }
 }
