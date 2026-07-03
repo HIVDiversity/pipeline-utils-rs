@@ -144,66 +144,98 @@ pub fn translate(dna_seq: &[u8], options: &TranslationOptions) -> Result<Vec<u8>
 mod tests {
     use super::*;
 
+
     #[test]
-    fn basic_test() {
+    fn basic_test() -> Result<()> {
         let dna_seq = "ATGTTATAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), &TranslationOptions::default()).unwrap();
+        let translation = translate(dna_seq.as_bytes(), &TranslationOptions::default())?;
 
-        assert_eq!(expected_translation.as_bytes(), translation.as_slice());
+        assert_eq!(expected_translation.to_owned(), String::from_utf8(translation)?);
+
+        Ok(())
     }
 
     #[test]
-    fn strip_gaps_true() {
+    fn strip_gaps_true() -> Result<()> {
         let dna_seq = "ATGTTA-TAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), &TranslationOptions::default()).unwrap();
+        let translation = translate(dna_seq.as_bytes(), &TranslationOptions {
+            strip_gaps: true,
+            stop_aa: b'*',
+            ..TranslationOptions::default()
+        }, )?;
 
-        assert_eq!(expected_translation.as_bytes(), translation.as_slice());
+        assert_eq!(expected_translation.to_owned(), String::from_utf8(translation)?);
+
+        Ok(())
     }
 
     #[test]
-    fn strip_gaps_false() {
+    fn strip_gaps_false() -> Result<()> {
         let dna_seq = "ATGTTA-TAA";
         let expected_translation = "MLX~";
-        let translation = translate(dna_seq.as_bytes(), &TranslationOptions::default()).unwrap();
+        let translation = translate(dna_seq.as_bytes(), &TranslationOptions {
+            strip_gaps: false,
+            drop_incomplete_codons: false,
+            incomplete_aa: b'~',
+            ..TranslationOptions::default()
+        }, )?;
 
-        assert_eq!(expected_translation.as_bytes(), translation.as_slice());
+        assert_eq!(expected_translation.to_owned(), String::from_utf8(translation)?);
+
+        Ok(())
     }
 
     #[test]
     fn ignore_gap_codons() {
         let dna_seq = "ATGTTA---TAA";
         let expected_translation = "ML*";
-        let translation = translate(dna_seq.as_bytes(), &TranslationOptions::default()).unwrap();
+        let translation = translate(
+            dna_seq.as_bytes(),
+            &TranslationOptions {
+                ignore_gap_codons: true,
+                ..TranslationOptions::default()
+            },
+        )
+            .unwrap();
 
         assert_eq!(expected_translation.as_bytes(), translation.as_slice());
     }
 
     #[test]
-    fn test_ambiguity() {
+    fn test_ambiguity() -> Result<()> {
         let test_cases = vec!["ATGTTACTNTAA", "NNNATGGGG", "ATGRAY---GTA"];
         let expected_outputs = vec!["MLL*", "?MG", "MB-V"];
 
         for (idx, test_case) in test_cases.iter().enumerate() {
             let expected_translation = expected_outputs[idx].as_bytes();
             let translation =
-                translate(test_case.as_bytes(), &TranslationOptions::default()).unwrap();
+                translate(test_case.as_bytes(), &TranslationOptions {
+                    unknown_aa: b'?',
+                    ..TranslationOptions::default()
+                }, )?;
 
-            assert_eq!(expected_translation, translation.as_slice());
+            assert_eq!(String::from_utf8(expected_translation.to_vec())?, String::from_utf8(translation)?);
         }
+
+        Ok(())
     }
 
     #[test]
-    fn test_alternate_stop_codon_char() {
+    fn test_alternate_stop_codon_char() -> Result<()> {
         let translation_standard =
             translate("ATGTTACTNTAA".as_bytes(), &TranslationOptions::default()).unwrap();
 
         let translation_custom =
-            translate("ATGTTACTNTAA".as_bytes(), &TranslationOptions::default()).unwrap();
+            translate("ATGTTACTNTAA".as_bytes(), &TranslationOptions {
+                stop_aa: b';',
+                ..TranslationOptions::default()
+            })?;
 
-        assert_eq!("MLL*".as_bytes(), translation_standard.as_slice());
-        assert_eq!("MLLX".as_bytes(), translation_custom.as_slice());
+        assert_eq!("MLL*".to_owned(), String::from_utf8(translation_standard)?);
+        assert_eq!("MLL;".to_owned(), String::from_utf8(translation_custom)?);
+        Ok(())
     }
 
     // TODO: Add more tests lol
