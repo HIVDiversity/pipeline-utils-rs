@@ -1,3 +1,0 @@
-[submodule "lib/rust-htslib"]
-	path = lib/rust-htslib
-	url = https://github.com/rust-bio/rust-htslib
