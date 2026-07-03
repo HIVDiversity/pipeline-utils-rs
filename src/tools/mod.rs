@@ -1,5 +1,6 @@
 pub mod collapse;
 pub mod expand;
+pub mod filter_by_length;
 pub mod gb_extract;
 pub mod get_consensus;
 #[cfg(feature = "process-miniprot")]

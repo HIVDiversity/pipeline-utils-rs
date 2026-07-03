@@ -1,3 +1,4 @@
+use crate::tools::filter_by_length::{LengthRange, LengthThreshold, Tolerance};
 use crate::tools::get_consensus::AmbiguityMode;
 use crate::utils::translate::TranslationOptions;
 use clap::builder::styling;
@@ -65,6 +66,64 @@ impl From<&TranslateCliOptions> for TranslationOptions {
     }
 }
 
+#[derive(Args)]
+#[group(required = true, multiple = false)]
+pub struct LengthThresholdArgs {
+    /// Center length: keep sequences at or above this fixed value (or, combined with
+    /// --min-tolerance/--max-tolerance/--tolerance, within a margin of it)
+    #[arg(short = 'l', long)]
+    pub length: Option<usize>,
+    /// Center length: the median length of the input sequences
+    #[arg(long)]
+    pub median: bool,
+    /// Center length: the mean length of the input sequences
+    #[arg(long)]
+    pub mean: bool,
+}
+
+impl From<&LengthThresholdArgs> for LengthThreshold {
+    fn from(opts: &LengthThresholdArgs) -> Self {
+        match (opts.length, opts.median, opts.mean) {
+            (Some(l), false, false) => LengthThreshold::Fixed(l),
+            (None, true, false) => LengthThreshold::Median,
+            (None, false, true) => LengthThreshold::Mean,
+            _ => unreachable!("clap ArgGroup guarantees exactly one of length/median/mean"),
+        }
+    }
+}
+
+#[derive(Args)]
+pub struct ToleranceArgs {
+    /// How much shorter than the center length a sequence may be and still be kept.
+    /// Accepts an absolute base count (e.g. "20") or a percentage of the center (e.g. "20%").
+    /// Defaults to 0 if omitted (the center acts as a strict minimum), unless --tolerance is set.
+    #[arg(long, value_name = "N|N%", conflicts_with = "tolerance")]
+    pub min_tolerance: Option<Tolerance>,
+    /// How much longer than the center length a sequence may be and still be kept.
+    /// Accepts an absolute base count or a percentage of the center.
+    /// If omitted (and --tolerance is not set), there is no upper bound.
+    #[arg(long, value_name = "N|N%", conflicts_with = "tolerance")]
+    pub max_tolerance: Option<Tolerance>,
+    /// Symmetric tolerance: shorthand for setting both --min-tolerance and --max-tolerance
+    /// to the same value. Conflicts with --min-tolerance/--max-tolerance.
+    #[arg(long, value_name = "N|N%")]
+    pub tolerance: Option<Tolerance>,
+}
+
+impl From<(&LengthThresholdArgs, &ToleranceArgs)> for LengthRange {
+    fn from((center, tolerance): (&LengthThresholdArgs, &ToleranceArgs)) -> Self {
+        let (min_tolerance, max_tolerance) = match tolerance.tolerance {
+            Some(t) => (Some(t), Some(t)),
+            None => (tolerance.min_tolerance, tolerance.max_tolerance),
+        };
+        LengthRange {
+            center: center.into(),
+            min_tolerance,
+            max_tolerance,
+        }
+    }
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Remove non-unique sequences. Output contains only unique sequences.
@@ -100,6 +159,29 @@ pub enum Commands {
         /// Include sequences not present in the name mapping file
         #[arg(short = 'm', long, default_value_t = false)]
         include_missing: bool,
+    },
+
+    /// Filter sequences by length, keeping only those within a range around a center
+    /// length (a fixed length, or the median/mean length of the input sequences). By
+    /// default the center acts as a strict minimum; add --min-tolerance/--max-tolerance/
+    /// --tolerance to accept a margin (absolute or percentage) below and/or above it.
+    FilterByLength {
+        /// The input FASTA file containing unaligned sequences
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write sequences meeting the length threshold to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Optional CSV file reporting each sequence's name, length, and filter result
+        #[arg(short = 'r', long)]
+        report_file: Option<PathBuf>,
+        /// Optional FASTA file to write sequences that did not meet the length threshold to
+        #[arg(long)]
+        rejected_seq_output: Option<PathBuf>,
+        #[command(flatten)]
+        threshold: LengthThresholdArgs,
+        #[command(flatten)]
+        tolerance: ToleranceArgs,
     },
 
     /// Extract a feature from a GenBank file and write it to a FASTA file.

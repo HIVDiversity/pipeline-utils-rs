@@ -6,6 +6,48 @@ image-name := "dlejeune/pipeline-utils-rs"
 default:
     just --list
 
+# Builds with cargo
+[group('general')]
+build:
+    cargo build
+
+# Runs this project with cargo and desired arguments
+[group('general')]
+run *args="":
+    cargo run -- {{ args }}
+
+# Cleans the project
+[group('general')]
+clean:
+    cargo clean
+
+# Formats this project
+[group('quality-control')]
+format:
+    cargo fmt
+
+# Runs the test suite
+[group('quality-control')]
+test:
+    cargo test
+
+# Run clippy and surface warnings
+[group('quality-control')]
+lint:
+    cargo clippy -- -D warnings
+
+[group('versioning')]
+release level:
+    cargo release {{ level }} --execute
+
+[group('versioning')]
+changelog:
+    git cliff
+
+[group('versioning')]
+commit:
+    cz
+
 # Builds a docker image with the most recent git tag
 [group('docker')]
 build-docker:
@@ -25,17 +67,17 @@ run-docker-it tag=latest-tag:
 [group('docker')]
 docker: build-docker push-docker
 
-build:
-    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo build
+# Builds this project in a docker container with relevant clang libraries
+[group('dockerized')]
+build-in-docker:
+    just cargo-in-docker build
 
-run *args="":
-    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo run -- {{ args }}
+# Runs the project via cargo run -- <args> in a docker container with necessary clang dependencies
+[group('dockerized')]
+run-in-docker *args="":
+    just cargo-in-docker run -- {{ args }}
 
-cargo *args:
+# Runs an arbitrary cargo command in a docker container with necessary clang dependencies
+[group('dockerized')]
+cargo-in-docker *args:
     docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo {{ args }}
-
-test-align-trim *args:
-    just run align-trim -r new_test_data/align-trim/ref.fasta -i new_test_data/align-trim/query.fasta -o new_test_data/align-trim/output.fasta {{ args }}
-
-test-kmer-trim *args:
-    just run kmer-trim -r new_test_data/kmer-trim/ref.fasta -i new_test_data/kmer-trim/query.fasta -o new_test_data/kmer-trim/output.fasta {{ args }}

@@ -137,6 +137,43 @@ mod purs {
     }
 
     #[pyfunction]
+    #[pyo3(signature = (seqs, length=None, median=false, mean=false))]
+    fn filter_by_length(
+        seqs: HashMap<String, String>,
+        length: Option<usize>,
+        median: bool,
+        mean: bool,
+    ) -> PyResult<(
+        HashMap<String, String>,
+        HashMap<String, String>,
+        Vec<(String, usize, bool)>,
+    )> {
+        let threshold = match (length, median, mean) {
+            (Some(l), false, false) => tools::filter_by_length::LengthThreshold::Fixed(l),
+            (None, true, false) => tools::filter_by_length::LengthThreshold::Median,
+            (None, false, true) => tools::filter_by_length::LengthThreshold::Mean,
+            _ => {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "Exactly one of length, median, or mean must be specified.",
+                ));
+            }
+        };
+
+        let (records, rejected, report) =
+            tools::filter_by_length::filter_by_length(dict_to_records(seqs), threshold)
+                .map_err(to_pyerr)?;
+        let report_rows = report
+            .into_iter()
+            .map(|r| (r.seq_name, r.length, r.kept))
+            .collect();
+        Ok((
+            records_to_dict(records)?,
+            records_to_dict(rejected)?,
+            report_rows,
+        ))
+    }
+
+    #[pyfunction]
     #[pyo3(signature = (seqs, seq_prefix, strip_gaps=false))]
     fn collapse(
         seqs: HashMap<String, String>,

@@ -1,5 +1,0 @@
-[env]
-CC= {value= "/home/dlejeune/Downloads/llvm-project-19.1.1.src/build/bin/clang-19", force=true}
-CRATE_CC_NO_DEFAULTS= {value= "/home/dlejeune/Downloads/llvm-project-19.1.1.src/build/bin/clang-19", force=true}
-CC_x86_64_unknown_linux_gnu= {value= "/home/dlejeune/Downloads/llvm-project-19.1.1.src/build/bin/clang-19", force=true}
-HOST_CC= {value= "/home/dlejeune/Downloads/llvm-project-19.1.1.src/build/bin/clang-19", force=true}
