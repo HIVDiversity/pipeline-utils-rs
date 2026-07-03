@@ -67,50 +67,6 @@ impl From<&TranslateCliOptions> for TranslationOptions {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Reverse translate a multiple sequence alignment.
-    /// Converts an amino acid alignment back into nucleotides, using the unaligned nucleotide
-    /// sequences as a guide. Ensures the original codons are used in the output.
-    ReverseTranslate {
-        /// Path to the aligned amino acid FASTA file
-        #[arg(short = 'i', long)]
-        aa_filepath: PathBuf,
-        /// Path to the unaligned FASTA file containing nucleotide sequences
-        #[arg(short = 'n', long)]
-        nt_filepath: PathBuf,
-        /// Where to write the translated, aligned nt FASTA file
-        #[arg(short, long)]
-        output_file_path: PathBuf,
-    },
-
-    /// Get the consensus sequence of a multiple sequence alignment.
-    /// Produces a single sequence where each position is the most common nucleotide.
-    GetConsensus {
-        /// Path to the input MSA FASTA file
-        #[arg(short = 'i', long)]
-        input_msa: PathBuf,
-        /// Path to write the consensus sequence as a FASTA file
-        #[arg(short = 'o', long)]
-        output_file: PathBuf,
-        /// Name for the consensus sequence in the FASTA file
-        #[arg(short = 'n', long)]
-        consensus_name: String,
-        /// How to handle ambiguous characters
-        #[arg(short = 'a', long)]
-        ambiguity_mode: AmbiguityMode,
-    },
-
-    /// Translate sequences from nucleotides into amino acids.
-    Translate {
-        /// The FASTA file containing nucleotide sequences to translate
-        #[arg(short = 'i', long)]
-        input_file: PathBuf,
-        /// The output file to write the translated amino acid sequences to
-        #[arg(short = 'o', long)]
-        output_file: PathBuf,
-        #[command(flatten)]
-        translation_options: TranslateCliOptions,
-    },
-
     /// Remove non-unique sequences. Output contains only unique sequences.
     Collapse {
         /// The input FASTA file containing uncollapsed sequences
@@ -159,34 +115,21 @@ pub enum Commands {
         seq_name: String,
     },
 
-    #[cfg(feature = "trim-sam")]
-    /// Trim a SAM file using coordinates on the reference sequence.
-    TrimSam {
-        /// The input SAM file
+    /// Get the consensus sequence of a multiple sequence alignment.
+    /// Produces a single sequence where each position is the most common nucleotide.
+    GetConsensus {
+        /// Path to the input MSA FASTA file
         #[arg(short = 'i', long)]
-        input_file: PathBuf,
-        /// The output FASTA file to write the trimmed sequences to
+        input_msa: PathBuf,
+        /// Path to write the consensus sequence as a FASTA file
         #[arg(short = 'o', long)]
         output_file: PathBuf,
-        /// The reference position to trim from (inclusive, 1-based)
-        #[arg(short = 'f', long)]
-        trim_from: i64,
-        /// The reference position to trim to (inclusive, 1-based)
-        #[arg(short = 't', long)]
-        trim_to: i64,
-    },
-
-    /// Convert IUPAC ambiguity codes to one of their possible nucleotides randomly.
-    ReplaceAmbiguities {
-        /// The input FASTA file
-        #[arg(short = 'i', long)]
-        input_file: PathBuf,
-        /// The output FASTA file to write the resolved sequences to
-        #[arg(short = 'o', long)]
-        output_file: PathBuf,
-        /// Seed for the random number generator
-        #[arg(short = 's', long, default_value_t = 42)]
-        seed: u64,
+        /// Name for the consensus sequence in the FASTA file
+        #[arg(short = 'n', long)]
+        consensus_name: String,
+        /// How to handle ambiguous characters
+        #[arg(short = 'a', long)]
+        ambiguity_mode: AmbiguityMode,
     },
 
     #[cfg(feature = "process-miniprot")]
@@ -206,17 +149,32 @@ pub enum Commands {
         output_dir: PathBuf,
     },
 
-    /// Removes columns containing a certain percentage of gaps (100% by default).
-    TrimAfterStop {
+    /// Convert IUPAC ambiguity codes to one of their possible nucleotides randomly.
+    ReplaceAmbiguities {
         /// The input FASTA file
         #[arg(short = 'i', long)]
         input_file: PathBuf,
-        /// The output FASTA file to write the trimmed sequences to
+        /// The output FASTA file to write the resolved sequences to
         #[arg(short = 'o', long)]
         output_file: PathBuf,
-        /// Include the stop codon in the output
-        #[arg(long, default_value_t = true)]
-        include_stop: bool,
+        /// Seed for the random number generator
+        #[arg(short = 's', long, default_value_t = 42)]
+        seed: u64,
+    },
+
+    /// Reverse translate a multiple sequence alignment.
+    /// Converts an amino acid alignment back into nucleotides, using the unaligned nucleotide
+    /// sequences as a guide. Ensures the original codons are used in the output.
+    ReverseTranslate {
+        /// Path to the aligned amino acid FASTA file
+        #[arg(short = 'i', long)]
+        aa_filepath: PathBuf,
+        /// Path to the unaligned FASTA file containing nucleotide sequences
+        #[arg(short = 'n', long)]
+        nt_filepath: PathBuf,
+        /// Where to write the translated, aligned nt FASTA file
+        #[arg(short, long)]
+        output_file_path: PathBuf,
     },
 
     /// Trims the nucleotides after the first stop codon in a sequence
@@ -233,4 +191,47 @@ pub enum Commands {
         #[arg(long, default_value_t = 100)]
         min_gap_pct: usize,
     },
+
+    /// Translate sequences from nucleotides into amino acids.
+    Translate {
+        /// The FASTA file containing nucleotide sequences to translate
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output file to write the translated amino acid sequences to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        #[command(flatten)]
+        translation_options: TranslateCliOptions,
+    },
+
+    /// Removes columns containing a certain percentage of gaps (100% by default).
+    TrimAfterStop {
+        /// The input FASTA file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write the trimmed sequences to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Include the stop codon in the output
+        #[arg(long, default_value_t = true)]
+        include_stop: bool,
+    },
+
+    #[cfg(feature = "trim-sam")]
+    /// Trim a SAM file using coordinates on the reference sequence.
+    TrimSam {
+        /// The input SAM file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write the trimmed sequences to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// The reference position to trim from (inclusive, 1-based)
+        #[arg(short = 'f', long)]
+        trim_from: i64,
+        /// The reference position to trim to (inclusive, 1-based)
+        #[arg(short = 't', long)]
+        trim_to: i64,
+    },
+
 }
