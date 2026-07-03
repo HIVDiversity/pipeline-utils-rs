@@ -18,7 +18,7 @@ pub fn write_fasta_sequences(
         fasta::Writer::to_file(output_file).with_context(|| "Could not open output file")?;
 
     for (seq_id, seq) in sequences {
-        writer.write(&seq_id, None, seq.as_slice())?;
+        writer.write(seq_id.as_str(), None, seq.as_slice())?;
     }
 
     Ok(())
@@ -27,8 +27,6 @@ pub fn write_fasta_sequences(
 pub fn load_fasta(file_path: &PathBuf) -> Result<FastaRecords> {
     let mut sequences: FastaRecords = FastaRecords::new();
     let reader = fasta::Reader::from_file(file_path).expect("Could not open file.");
-
-    // let mut parsing_errors = 0;
 
     for result in reader.records() {
         let record = result.expect("This record is invalid and failed to parse.");

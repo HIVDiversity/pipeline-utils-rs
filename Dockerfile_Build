@@ -1,0 +1,12 @@
+FROM rust:trixie
+
+RUN apt-get update && apt-get install -y \
+    clang \
+    libclang-dev \
+    llvm \
+    cmake \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+
+WORKDIR /build

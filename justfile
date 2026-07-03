@@ -19,17 +19,20 @@ push-docker:
 # Runs an interactive docker container with the current wd mounted at /data
 [group('docker')]
 run-docker-it tag=latest-tag:
-    sudo docker run --rm -it -v ./:/data dlejeune/{{ image-name }}:{{ tag }} bash
+    sudo docker run --rm -it -v ./:/data {{ image-name }}:{{ tag }} bash
 
 # Builds and pushed the most recently tagged branch in a docker container
 [group('docker')]
 docker: build-docker push-docker
 
 build:
-    cargo build
+    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo build
 
 run *args="":
-    cargo run -- {{ args }}
+    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo run -- {{ args }}
+
+cargo *args:
+    docker run --rm  -u $(id -u):$(id -g) -i -v "$HOME:$HOME" -w "/home/dlejeune/Projects/pipeline-utils-rs"  purs-build cargo {{ args }}
 
 test-align-trim *args:
     just run align-trim -r new_test_data/align-trim/ref.fasta -i new_test_data/align-trim/query.fasta -o new_test_data/align-trim/output.fasta {{ args }}

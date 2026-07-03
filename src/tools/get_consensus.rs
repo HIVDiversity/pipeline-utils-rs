@@ -1,17 +1,15 @@
 use crate::utils;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use bio::io::fasta;
 use clap::ValueEnum;
 use colored::Colorize;
 use itertools::Itertools;
 use nalgebra::DMatrix;
-use pyo3::prelude::*;
 use rand::seq::IteratorRandom;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use utils::fasta_utils;
 use utils::translate::find_ambiguity_code;
-const VERSION: &str = "0.3.0";
 
 #[derive(ValueEnum, Clone, Copy)]
 pub enum AmbiguityMode {
@@ -21,7 +19,7 @@ pub enum AmbiguityMode {
     MarkN,
 }
 
-fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
+pub(crate) fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     // Check if sequences are empty
     if sequences.is_empty() {
         return Err(anyhow!(
@@ -50,7 +48,7 @@ fn sequences_to_matrix(sequences: &Vec<Vec<u8>>) -> Result<DMatrix<u8>> {
     ))
 }
 
-fn build_consensus(msa: &DMatrix<u8>, ambiguity_mode: AmbiguityMode) -> Result<Vec<u8>> {
+pub(crate) fn build_consensus(msa: &DMatrix<u8>, ambiguity_mode: AmbiguityMode) -> Result<Vec<u8>> {
     let mut consensus: Vec<u8> = Vec::new();
 
     for col in msa.column_iter() {
@@ -129,12 +127,14 @@ pub fn run(
     consensus_name: &String,
     ambiguity_mode: AmbiguityMode,
 ) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
     log::info!(
         "{}",
-        format!("This is get-consensus version {}", VERSION)
-            .bold()
-            .bright_green()
+        format!(
+            "This is get-consensus version {}",
+            env!("CARGO_PKG_VERSION")
+        )
+        .bold()
+        .bright_green()
     );
 
     log::info!("Reading input FASTA file: {:?}", input_seqs_aligned);
@@ -157,27 +157,6 @@ pub fn run(
     write_consensus(output_path, consensus_name, &consensus)?;
 
     Ok(())
-}
-
-#[pymodule]
-mod pygetcons {
-    use super::*;
-    use pyo3::prelude::*;
-
-    #[pyfunction]
-    fn get_cons(seqs: Vec<String>, ambiguity_mode_str: String) -> PyResult<String> {
-        let new_msa = seqs.iter().map(|seq| seq.as_bytes().to_vec()).collect();
-        let ambiguity_mode = match ambiguity_mode_str.as_str() {
-            "IUPAC" => AmbiguityMode::UseIUPAC,
-            "First" => AmbiguityMode::First,
-            "Random" => AmbiguityMode::Random,
-            "MarkN" => AmbiguityMode::MarkN,
-            _ => AmbiguityMode::UseIUPAC,
-        };
-        let new_seqs = sequences_to_matrix(&new_msa).unwrap();
-        let consensus = build_consensus(&new_seqs, ambiguity_mode).unwrap();
-        PyResult::Ok(String::from_utf8(consensus)?)
-    }
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-FROM rust:1.88.0 AS planner
+FROM rust:1.93.0 AS planner
 RUN cargo install cargo-chef
 
 WORKDIR /app
@@ -7,24 +7,30 @@ COPY . .
 # Prepare a build plan ("recipe")
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM rust:1.88.0 AS builder
+FROM rust:1.93.0 AS builder
 RUN cargo install cargo-chef
 
 # Copy the build plan from the previous Docker stage
 COPY --from=planner /app/recipe.json recipe.json
 
-RUN apt-get update && apt-get install -y lsb-release software-properties-common gnupg &&\
-    apt-get clean all && bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+RUN apt-get update && apt-get install -y lsb-release gnupg\
+                                                      clang \
+                                                      libclang-dev \
+                                                      llvm \
+                                                      cmake \
+                                                      build-essential \
+                                                      && rm -rf /var/lib/apt/lists/*
+
 
 # Build dependencies - this layer is cached as long as `recipe.json`
 # doesn't change.
-RUN cargo chef cook --recipe-path recipe.json
+RUN cargo chef cook --release --features trim-sam,process-miniprot --recipe-path recipe.json
 
 # Build the whole project
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --features trim-sam,process-miniprot
 
-FROM debian:bookworm AS release
+FROM debian:trixie AS release
 
 RUN apt-get update && apt-get install -y procps
 

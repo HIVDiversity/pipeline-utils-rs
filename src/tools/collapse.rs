@@ -1,16 +1,16 @@
-use crate::utils::fasta_utils::{FastaRecords, load_fasta};
-use crate::utils::translate::GAP_CHAR;
-use anyhow::{Context, Result};
-use bio::io::fasta;
+use crate::utils::codon_tables::GAP_CHAR;
+use crate::utils::fasta_utils::{load_fasta, write_fasta_sequences, FastaRecords};
+use anyhow::Result;
 use colored::Colorize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-const VERSION: &str = "0.1.0";
+pub(crate) type SeqToNameMapping = HashMap<Vec<u8>, Vec<String>>;
 
-type SeqToNameMapping = HashMap<Vec<u8>, Vec<String>>;
-
-fn collapse_sequences(sequences: FastaRecords, strip_gaps: bool) -> Result<SeqToNameMapping> {
+pub(crate) fn collapse_sequences(
+    sequences: FastaRecords,
+    strip_gaps: bool,
+) -> Result<SeqToNameMapping> {
     let mut unique_sequences: SeqToNameMapping =
         SeqToNameMapping::with_capacity(sequences.capacity());
 
@@ -31,21 +31,16 @@ fn collapse_sequences(sequences: FastaRecords, strip_gaps: bool) -> Result<SeqTo
     Ok(unique_sequences)
 }
 
-fn write_sequences_and_name_mapping(
+pub(crate) fn build_collapsed_output(
     collapsed_seqs: SeqToNameMapping,
-    output_file: &PathBuf,
-    name_mapping_output: &PathBuf,
-    seq_prefix: &String,
-) -> Result<()> {
-    let mut writer = fasta::Writer::to_file(output_file)
-        .with_context(|| format!("Trying to write to file {:?}", output_file))?;
-    let mut name_mapping: HashMap<String, &Vec<String>> =
-        HashMap::with_capacity(collapsed_seqs.capacity());
-
-    log::info!("Writing unique sequences to file {:?}", output_file);
+    seq_prefix: &str,
+) -> (FastaRecords, HashMap<String, Vec<String>>) {
+    let mut collapsed_sequences: FastaRecords = FastaRecords::with_capacity(collapsed_seqs.len());
+    let mut name_mapping: HashMap<String, Vec<String>> =
+        HashMap::with_capacity(collapsed_seqs.len());
 
     let mut counter = 0;
-    for (sequence, sequence_names) in &collapsed_seqs {
+    for (sequence, sequence_names) in collapsed_seqs {
         // This will generate a sequence with a unique int for each collapsed seq, and a count
         // for the sequences that make up this collapsed one
         let seq_name = format!(
@@ -55,10 +50,24 @@ fn write_sequences_and_name_mapping(
             sequence_names.len()
         );
 
-        writer.write(&seq_name, None, &sequence)?;
+        collapsed_sequences.insert(seq_name.clone(), sequence);
         counter += 1;
-        name_mapping.insert(seq_name.clone(), sequence_names);
+        name_mapping.insert(seq_name, sequence_names);
     }
+
+    (collapsed_sequences, name_mapping)
+}
+
+fn write_sequences_and_name_mapping(
+    collapsed_seqs: SeqToNameMapping,
+    output_file: &PathBuf,
+    name_mapping_output: &PathBuf,
+    seq_prefix: &String,
+) -> Result<()> {
+    let (collapsed_sequences, name_mapping) = build_collapsed_output(collapsed_seqs, seq_prefix);
+
+    log::info!("Writing unique sequences to file {:?}", output_file);
+    write_fasta_sequences(output_file, &collapsed_sequences)?;
 
     log::info!("Writing name mapping to {:?}", name_mapping_output);
     std::fs::write(
@@ -76,11 +85,9 @@ pub fn run(
     seq_name_prefix: &String,
     strip_gaps: bool,
 ) -> Result<()> {
-    simple_logger::SimpleLogger::new().env().init()?;
-
     log::info!(
         "{}",
-        format!("This is 'collapse' version {}", VERSION)
+        format!("This is 'collapse' version {}", env!("CARGO_PKG_VERSION"))
             .bold()
             .bright_yellow()
     );
