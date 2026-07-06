@@ -41,7 +41,7 @@ pub(crate) fn strip_gap_columns(
         .into_iter()
         .filter(|column| {
             let gap_count = column.iter().filter(|c| **c == GAP_CHAR).count();
-            println!("{}", gap_count / num_sequences);
+            
             (((gap_count as f32 / num_sequences as f32) * 100f32) as usize) < pct_gap_cols_to_remove
         })
         .collect();
