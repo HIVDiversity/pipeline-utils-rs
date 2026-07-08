@@ -71,6 +71,24 @@ fn main() -> Result<()> {
                 (&threshold, &tolerance).into(),
             )?;
         }
+        Commands::FilterByKmer {
+            input_file,
+            output_file,
+            report_file,
+            rejected_seq_output,
+            kmer_filter,
+        } => {
+            let start_kmers = kmer_filter.start_kmers_bytes();
+            let end_kmers = kmer_filter.end_kmers_bytes();
+            tools::filter_by_kmer::run(
+                &input_file,
+                &output_file,
+                report_file.as_ref(),
+                rejected_seq_output.as_ref(),
+                start_kmers.as_deref(),
+                end_kmers.as_deref(),
+            )?;
+        }
         Commands::GbExtract {
             input_file,
             output_file,

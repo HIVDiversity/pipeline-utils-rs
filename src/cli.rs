@@ -124,6 +124,38 @@ impl From<(&LengthThresholdArgs, &ToleranceArgs)> for LengthRange {
     }
 }
 
+#[derive(Args)]
+#[group(required = true, multiple = true)]
+pub struct KmerFilterArgs {
+    /// Comma-separated list of allowed k-mers to match against the start of each sequence; a
+    /// sequence passes the start check if it matches any one of them. IUPAC ambiguity codes
+    /// in either the k-mer or the sequence are matched according to what bases they represent.
+    #[arg(long, value_delimiter = ',')]
+    pub start_kmers: Option<Vec<String>>,
+    /// Comma-separated list of allowed k-mers to match against the end of each sequence, with
+    /// the same semantics as --start-kmers.
+    #[arg(long, value_delimiter = ',')]
+    pub end_kmers: Option<Vec<String>>,
+}
+
+impl KmerFilterArgs {
+    fn kmers_to_bytes(kmers: &Option<Vec<String>>) -> Option<Vec<Vec<u8>>> {
+        kmers.as_ref().map(|list| {
+            list.iter()
+                .map(|k| k.to_ascii_uppercase().into_bytes())
+                .collect()
+        })
+    }
+
+    pub fn start_kmers_bytes(&self) -> Option<Vec<Vec<u8>>> {
+        Self::kmers_to_bytes(&self.start_kmers)
+    }
+
+    pub fn end_kmers_bytes(&self) -> Option<Vec<Vec<u8>>> {
+        Self::kmers_to_bytes(&self.end_kmers)
+    }
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Remove non-unique sequences. Output contains only unique sequences.
@@ -182,6 +214,27 @@ pub enum Commands {
         threshold: LengthThresholdArgs,
         #[command(flatten)]
         tolerance: ToleranceArgs,
+    },
+
+    /// Filter sequences by whether they start and/or end with an allowed k-mer (e.g. a start
+    /// codon and/or a stop codon). A sequence passes a given check if it matches any one of
+    /// the comma-separated k-mers provided for that check; IUPAC ambiguity codes in either the
+    /// k-mer or the sequence are matched according to what bases they represent.
+    FilterByKmer {
+        /// The input FASTA file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write sequences that pass all requested checks to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Optional CSV file reporting each sequence's start/end match results and filter result
+        #[arg(short = 'r', long)]
+        report_file: Option<PathBuf>,
+        /// Optional FASTA file to write sequences that failed a requested check to
+        #[arg(long)]
+        rejected_seq_output: Option<PathBuf>,
+        #[command(flatten)]
+        kmer_filter: KmerFilterArgs,
     },
 
     /// Extract a feature from a GenBank file and write it to a FASTA file.

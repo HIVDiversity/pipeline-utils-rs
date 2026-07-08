@@ -159,8 +159,13 @@ mod purs {
             }
         };
 
+        let range = tools::filter_by_length::LengthRange {
+            center: threshold,
+            min_tolerance: None,
+            max_tolerance: None,
+        };
         let (records, rejected, report) =
-            tools::filter_by_length::filter_by_length(dict_to_records(seqs), threshold)
+            tools::filter_by_length::filter_by_length(dict_to_records(seqs), range)
                 .map_err(to_pyerr)?;
         let report_rows = report
             .into_iter()
@@ -201,5 +206,52 @@ mod purs {
         )
         .map_err(to_pyerr)?;
         records_to_dict(expanded)
+    }
+
+    #[pyfunction]
+    #[pyo3(signature = (seqs, start_kmers=None, end_kmers=None))]
+    fn filter_by_kmer(
+        seqs: HashMap<String, String>,
+        start_kmers: Option<Vec<String>>,
+        end_kmers: Option<Vec<String>>,
+    ) -> PyResult<(
+        HashMap<String, String>,
+        HashMap<String, String>,
+        Vec<(String, Option<bool>, Option<bool>, bool)>,
+    )> {
+        if start_kmers.is_none() && end_kmers.is_none() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "At least one of start_kmers or end_kmers must be specified.",
+            ));
+        }
+
+        fn to_bytes(kmers: Option<Vec<String>>) -> Option<Vec<Vec<u8>>> {
+            kmers.map(|list| {
+                list.into_iter()
+                    .map(|k| k.to_ascii_uppercase().into_bytes())
+                    .collect()
+            })
+        }
+
+        let start_kmers = to_bytes(start_kmers);
+        let end_kmers = to_bytes(end_kmers);
+
+        let (records, rejected, report) = tools::filter_by_kmer::filter_by_kmer(
+            dict_to_records(seqs),
+            start_kmers.as_deref(),
+            end_kmers.as_deref(),
+        )
+        .map_err(to_pyerr)?;
+
+        let report_rows = report
+            .into_iter()
+            .map(|r| (r.seq_name, r.start_match, r.end_match, r.kept))
+            .collect();
+
+        Ok((
+            records_to_dict(records)?,
+            records_to_dict(rejected)?,
+            report_rows,
+        ))
     }
 }
