@@ -216,7 +216,7 @@ pub enum Commands {
         #[command(flatten)]
         tolerance: ToleranceArgs,
         /// Exclude gaps from the sequence length
-        #[arg(long)]
+        #[arg(long, default_value_t = false)]
         exclude_gaps: bool,
     },
 
