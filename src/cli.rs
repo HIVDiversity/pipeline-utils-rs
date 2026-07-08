@@ -215,6 +215,9 @@ pub enum Commands {
         threshold: LengthThresholdArgs,
         #[command(flatten)]
         tolerance: ToleranceArgs,
+        /// Exclude gaps from the sequence length
+        #[arg(long)]
+        exclude_gaps: bool,
     },
 
     /// Filter sequences by whether they start and/or end with an allowed k-mer (e.g. a start

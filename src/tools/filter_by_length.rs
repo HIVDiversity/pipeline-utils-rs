@@ -4,6 +4,7 @@ use colored::Colorize;
 use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
+use crate::utils::codon_tables::GAP_CHAR;
 
 pub enum LengthThreshold {
     Fixed(usize),
@@ -95,6 +96,7 @@ pub(crate) struct FilterReportRow {
 pub(crate) fn filter_by_length(
     sequences: FastaRecords,
     range: LengthRange,
+    exclude_gaps: bool,
 ) -> Result<(FastaRecords, FastaRecords, Vec<FilterReportRow>)> {
     if sequences.is_empty() {
         bail!("No sequences were provided.")
@@ -117,7 +119,11 @@ pub(crate) fn filter_by_length(
     let mut report_rows = Vec::with_capacity(sequences.len());
 
     for (seq_name, seq) in sequences {
-        let length = seq.len();
+        let length = match exclude_gaps {
+            true => { seq.iter().filter(|x| { **x != GAP_CHAR }).count() }
+            false => { seq.len() }
+        };
+
         let length_f = length as f64;
         let kept = length_f >= lower_bound && upper_bound.is_none_or(|u| length_f <= u);
 
@@ -161,6 +167,7 @@ pub fn run(
     report_file: Option<&PathBuf>,
     rejected_seq_output: Option<&PathBuf>,
     range: LengthRange,
+    exclude_gaps: bool,
 ) -> Result<()> {
     log::info!(
         "{}",
@@ -174,7 +181,7 @@ pub fn run(
 
     log::info!("Reading input file {:?}", input_file);
     let sequences = load_fasta(input_file)?;
-    let (kept_sequences, rejected_sequences, report_rows) = filter_by_length(sequences, range)?;
+    let (kept_sequences, rejected_sequences, report_rows) = filter_by_length(sequences, range, exclude_gaps)?;
 
     write_fasta_sequences(output_file, &kept_sequences)?;
 
@@ -213,7 +220,7 @@ mod tests {
         );
 
         let (output, rejected, report) =
-            filter_by_length(input_seqs, center_only(LengthThreshold::Fixed(10)))?;
+            filter_by_length(input_seqs, center_only(LengthThreshold::Fixed(10)), false)?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
@@ -235,6 +242,30 @@ mod tests {
     }
 
     #[test]
+    fn test_gap_exclusion() -> Result<()> {
+        let input_seqs: FastaRecords = hash_map!(
+            "A".to_string(): vec![b'A', b'T', b'-', b'-', b'G'],
+            "B".to_string(): vec![b'A'; 10],
+        );
+
+        let (output, _, _) =
+            filter_by_length(input_seqs.clone(), center_only(LengthThreshold::Fixed(4)), false)?;
+
+        assert_eq!(output.len(), 2);
+        assert!(output.contains_key("B"));
+        assert!(output.contains_key("A"));
+
+        let (output, _, _) =
+            filter_by_length(input_seqs, center_only(LengthThreshold::Fixed(4)), true)?;
+        assert_eq!(output.len(), 1);
+        assert!(output.contains_key("B"));
+        assert!(!output.contains_key("A"));
+
+
+        Ok(())
+    }
+
+    #[test]
     fn test_median_threshold_odd_count() -> Result<()> {
         let input_seqs: FastaRecords = hash_map!(
             "A".to_string(): vec![b'A'; 5],
@@ -243,7 +274,7 @@ mod tests {
         );
 
         // Median length is 10.
-        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Median))?;
+        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Median), false)?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
@@ -262,7 +293,7 @@ mod tests {
         );
 
         // Median length is (10 + 20) / 2 = 15.
-        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Median))?;
+        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Median), false)?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("C"));
@@ -280,7 +311,7 @@ mod tests {
         );
 
         // Mean length is 10.
-        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Mean))?;
+        let (output, _, _) = filter_by_length(input_seqs, center_only(LengthThreshold::Mean), false)?;
 
         assert_eq!(output.len(), 2);
         assert!(output.contains_key("B"));
@@ -292,7 +323,7 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let input_seqs: FastaRecords = FastaRecords::new();
-        assert!(filter_by_length(input_seqs, center_only(LengthThreshold::Fixed(10))).is_err());
+        assert!(filter_by_length(input_seqs, center_only(LengthThreshold::Fixed(10)), false).is_err());
     }
 
     #[test]
@@ -311,6 +342,7 @@ mod tests {
                 min_tolerance: Some(Tolerance::Absolute(20.0)),
                 max_tolerance: None,
             },
+            false,
         )?;
 
         assert_eq!(output.len(), 2);
@@ -338,7 +370,7 @@ mod tests {
                 center: LengthThreshold::Median,
                 min_tolerance: Some(Tolerance::Percent(10.0)),
                 max_tolerance: Some(Tolerance::Percent(10.0)),
-            },
+            }, false,
         )?;
 
         assert_eq!(output.len(), 2);

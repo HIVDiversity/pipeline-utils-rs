@@ -62,6 +62,7 @@ fn main() -> Result<()> {
             rejected_seq_output,
             threshold,
             tolerance,
+            exclude_gaps
         } => {
             tools::filter_by_length::run(
                 &input_file,
@@ -69,6 +70,7 @@ fn main() -> Result<()> {
                 report_file.as_ref(),
                 rejected_seq_output.as_ref(),
                 (&threshold, &tolerance).into(),
+                exclude_gaps
             )?;
         }
         Commands::FilterByKmer {
