@@ -134,6 +134,14 @@ fn main() -> Result<()> {
             min_gap_pct,
         } => {
             tools::strip_gap_cols::run(&input_file, &output_file, min_gap_pct)?;
+        },
+        Commands::GetMindistSeq {
+            input_msa,
+            output_file,
+            ambiguity_mode,
+            compute_mode
+        } => {
+            tools::get_mindist_seq::run(&input_msa, &output_file, ambiguity_mode, compute_mode)?;
         }
     }
 

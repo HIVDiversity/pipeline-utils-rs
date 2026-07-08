@@ -4,6 +4,7 @@ use crate::utils::translate::TranslationOptions;
 use clap::builder::styling;
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
+use crate::tools::get_mindist_seq::ComputeMode;
 
 const STYLES: styling::Styles = styling::Styles::styled()
     .header(styling::AnsiColor::Green.on_default().bold())
@@ -265,6 +266,24 @@ pub enum Commands {
         /// How to handle ambiguous characters
         #[arg(short = 'a', long)]
         ambiguity_mode: AmbiguityMode,
+    },
+
+    /// Get the "mindist" sequence from a Multiple Sequence Alignment.
+    /// This is the most representative sequence from the MSA.
+    GetMindistSeq {
+        /// Path to the input MSA FASTA file
+        #[arg(short = 'i', long)]
+        input_msa: PathBuf,
+        /// Path to write the mindist sequence as a FASTA file
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// How to handle ambiguous characters if using the "heuristic" approach
+        #[arg(short = 'a', long)]
+        ambiguity_mode: AmbiguityMode,
+        /// How to compute the mindist. Heuristic builds a consensus sequence and finds the sequence which is most
+        /// similar to that. Accurate compares each seqeunce to every other sequence.
+        #[arg(short = 'm', long)]
+        compute_mode: ComputeMode,
     },
 
     #[cfg(feature = "process-miniprot")]
