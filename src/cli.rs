@@ -241,6 +241,25 @@ pub enum Commands {
         kmer_filter: KmerFilterArgs,
     },
 
+    /// Filter sequences by name using regular expressions
+    FilterByName {
+        /// The input FASTA file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write sequences that pass all requested checks to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Regex pattern to filter with. For example, ^_ matches anything starting with an underscore.
+        #[arg(short = 'p', long)]
+        pattern: String,
+        /// Optional FASTA file to write sequences that failed a requested check to
+        #[arg(long)]
+        rejected_seq_output: Option<PathBuf>,
+        /// Exclude sequences that match the regex. (default: false)
+        #[arg[short='e', long, default_value_t = false]]
+        exclude: bool,
+    },
+
     /// Extract a feature from a GenBank file and write it to a FASTA file.
     GbExtract {
         /// The input GenBank file
