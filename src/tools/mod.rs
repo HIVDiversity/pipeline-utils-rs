@@ -14,3 +14,4 @@ pub mod trim_after_stop_codon;
 #[cfg(feature = "trim-sam")]
 pub mod trim_sam;
 pub mod get_mindist_seq;
+pub mod filter_by_name;
