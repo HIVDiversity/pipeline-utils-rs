@@ -31,7 +31,7 @@ fn records_to_dict(
 }
 
 #[pyo3::pymodule]
-mod purs {
+pub mod purs {
     use super::*;
     use pyo3::prelude::*;
     use std::collections::HashMap;

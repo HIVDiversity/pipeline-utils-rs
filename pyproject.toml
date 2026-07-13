@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=1.14.1,<2"]
+build-backend = "maturin"
+
+[project]
+name = "purs"
+dynamic = ["version"]
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = []
+[tool]
+[tool.maturin]
+features = ["python"]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.15.0",
+    "maturin>=1.14.1",
+]
