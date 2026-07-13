@@ -40,14 +40,6 @@ lint:
 release level:
     cargo release {{ level }} --execute
 
-[group('versioning')]
-changelog:
-    git cliff
-
-[group('versioning')]
-commit:
-    cz
-
 # Builds a docker image with the most recent git tag
 [group('docker')]
 build-docker:
