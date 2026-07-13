@@ -109,7 +109,7 @@ mod purs {
             dict_to_records(aa_seqs),
             dict_to_records(nt_seqs),
         )
-        .map_err(to_pyerr)?;
+            .map_err(to_pyerr)?;
         records_to_dict(result)
     }
 
@@ -137,12 +137,13 @@ mod purs {
     }
 
     #[pyfunction]
-    #[pyo3(signature = (seqs, length=None, median=false, mean=false))]
+    #[pyo3(signature = (seqs, length=None, median=false, mean=false, exclude_gaps=true))]
     fn filter_by_length(
         seqs: HashMap<String, String>,
         length: Option<usize>,
         median: bool,
         mean: bool,
+        exclude_gaps: bool,
     ) -> PyResult<(
         HashMap<String, String>,
         HashMap<String, String>,
@@ -165,7 +166,7 @@ mod purs {
             max_tolerance: None,
         };
         let (records, rejected, report) =
-            tools::filter_by_length::filter_by_length(dict_to_records(seqs), range)
+            tools::filter_by_length::filter_by_length(dict_to_records(seqs), range, exclude_gaps)
                 .map_err(to_pyerr)?;
         let report_rows = report
             .into_iter()
@@ -204,7 +205,7 @@ mod purs {
             name_mapping,
             include_missing,
         )
-        .map_err(to_pyerr)?;
+            .map_err(to_pyerr)?;
         records_to_dict(expanded)
     }
 
@@ -241,7 +242,7 @@ mod purs {
             start_kmers.as_deref(),
             end_kmers.as_deref(),
         )
-        .map_err(to_pyerr)?;
+            .map_err(to_pyerr)?;
 
         let report_rows = report
             .into_iter()
