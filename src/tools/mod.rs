@@ -1,5 +1,6 @@
 pub mod collapse;
 pub mod expand;
+pub mod filter_by_kmer;
 pub mod filter_by_length;
 pub mod gb_extract;
 pub mod get_consensus;
@@ -12,3 +13,5 @@ pub mod translate;
 pub mod trim_after_stop_codon;
 #[cfg(feature = "trim-sam")]
 pub mod trim_sam;
+pub mod get_mindist_seq;
+pub mod filter_by_name;

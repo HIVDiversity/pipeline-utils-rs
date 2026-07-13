@@ -4,6 +4,7 @@ use crate::utils::translate::TranslationOptions;
 use clap::builder::styling;
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
+use crate::tools::get_mindist_seq::ComputeMode;
 
 const STYLES: styling::Styles = styling::Styles::styled()
     .header(styling::AnsiColor::Green.on_default().bold())
@@ -124,6 +125,38 @@ impl From<(&LengthThresholdArgs, &ToleranceArgs)> for LengthRange {
     }
 }
 
+#[derive(Args)]
+#[group(required = true, multiple = true)]
+pub struct KmerFilterArgs {
+    /// Comma-separated list of allowed k-mers to match against the start of each sequence; a
+    /// sequence passes the start check if it matches any one of them. IUPAC ambiguity codes
+    /// in either the k-mer or the sequence are matched according to what bases they represent.
+    #[arg(long, value_delimiter = ',')]
+    pub start_kmers: Option<Vec<String>>,
+    /// Comma-separated list of allowed k-mers to match against the end of each sequence, with
+    /// the same semantics as --start-kmers.
+    #[arg(long, value_delimiter = ',')]
+    pub end_kmers: Option<Vec<String>>,
+}
+
+impl KmerFilterArgs {
+    fn kmers_to_bytes(kmers: &Option<Vec<String>>) -> Option<Vec<Vec<u8>>> {
+        kmers.as_ref().map(|list| {
+            list.iter()
+                .map(|k| k.to_ascii_uppercase().into_bytes())
+                .collect()
+        })
+    }
+
+    pub fn start_kmers_bytes(&self) -> Option<Vec<Vec<u8>>> {
+        Self::kmers_to_bytes(&self.start_kmers)
+    }
+
+    pub fn end_kmers_bytes(&self) -> Option<Vec<Vec<u8>>> {
+        Self::kmers_to_bytes(&self.end_kmers)
+    }
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Remove non-unique sequences. Output contains only unique sequences.
@@ -182,6 +215,49 @@ pub enum Commands {
         threshold: LengthThresholdArgs,
         #[command(flatten)]
         tolerance: ToleranceArgs,
+        /// Exclude gaps from the sequence length
+        #[arg(long, default_value_t = false)]
+        exclude_gaps: bool,
+    },
+
+    /// Filter sequences by whether they start and/or end with an allowed k-mer (e.g. a start
+    /// codon and/or a stop codon). A sequence passes a given check if it matches any one of
+    /// the comma-separated k-mers provided for that check; IUPAC ambiguity codes in either the
+    /// k-mer or the sequence are matched according to what bases they represent.
+    FilterByKmer {
+        /// The input FASTA file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write sequences that pass all requested checks to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Optional CSV file reporting each sequence's start/end match results and filter result
+        #[arg(short = 'r', long)]
+        report_file: Option<PathBuf>,
+        /// Optional FASTA file to write sequences that failed a requested check to
+        #[arg(long)]
+        rejected_seq_output: Option<PathBuf>,
+        #[command(flatten)]
+        kmer_filter: KmerFilterArgs,
+    },
+
+    /// Filter sequences by name using regular expressions
+    FilterByName {
+        /// The input FASTA file
+        #[arg(short = 'i', long)]
+        input_file: PathBuf,
+        /// The output FASTA file to write sequences that pass all requested checks to
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// Regex pattern to filter with. For example, ^_ matches anything starting with an underscore.
+        #[arg(short = 'p', long)]
+        pattern: String,
+        /// Optional FASTA file to write sequences that failed a requested check to
+        #[arg(long)]
+        rejected_seq_output: Option<PathBuf>,
+        /// Exclude sequences that match the regex. (default: false)
+        #[arg[short='e', long, default_value_t = false]]
+        exclude: bool,
     },
 
     /// Extract a feature from a GenBank file and write it to a FASTA file.
@@ -212,6 +288,24 @@ pub enum Commands {
         /// How to handle ambiguous characters
         #[arg(short = 'a', long)]
         ambiguity_mode: AmbiguityMode,
+    },
+
+    /// Get the "mindist" sequence from a Multiple Sequence Alignment.
+    /// This is the most representative sequence from the MSA.
+    GetMindistSeq {
+        /// Path to the input MSA FASTA file
+        #[arg(short = 'i', long)]
+        input_msa: PathBuf,
+        /// Path to write the mindist sequence as a FASTA file
+        #[arg(short = 'o', long)]
+        output_file: PathBuf,
+        /// How to handle ambiguous characters if using the "heuristic" approach
+        #[arg(short = 'a', long)]
+        ambiguity_mode: AmbiguityMode,
+        /// How to compute the mindist. Heuristic builds a consensus sequence and finds the sequence which is most
+        /// similar to that. Accurate compares each seqeunce to every other sequence.
+        #[arg(short = 'm', long)]
+        compute_mode: ComputeMode,
     },
 
     #[cfg(feature = "process-miniprot")]

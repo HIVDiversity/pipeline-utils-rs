@@ -48,16 +48,21 @@ CLI usage follows `pipeline-utils-rs <subcommand> [options]`; run `cargo run -- 
 - `src/python.rs` — the `pyo3` bindings (`#[pymodule] mod purs`). Each exposed `#[pyfunction]` wraps a
   `tools::<name>` function, converting Python dict/Vec args to/from the internal `FastaRecords` representation
   via the local `dict_to_records`/`records_to_dict` helpers. Currently exposes: `get_consensus`, `translate`,
-  `reverse_translate`, `replace_ambiguities`, `trim_after_stop_codon`, `collapse`, `expand`. Adding Python
-  support for a tool means adding a `#[pyfunction]` here *and* registering it in the `mod purs` block — pyo3
-  auto-registers functions defined inside the `#[pymodule] mod purs { ... }` block.
+  `reverse_translate`, `replace_ambiguities`, `trim_after_stop_codon`, `filter_by_length`, `collapse`, `expand`,
+  `filter_by_kmer`. Adding Python support for a tool means adding a `#[pyfunction]` here *and* registering it
+  in the `mod purs` block — pyo3 auto-registers functions defined inside the `#[pymodule] mod purs { ... }`
+  block.
 - `src/cli.rs` — all `clap` argument/subcommand definitions (the `Cli` struct and `Commands` enum). Adding a new
   subcommand means adding a variant here *and* a matching arm in `main.rs` *and* a new module in `src/tools/`.
 - `src/tools/` — one module per subcommand, each exposing a `pub fn run(...) -> Result<()>` for CLI use; several
   also expose lower-level functions consumed directly by `src/python.rs` (e.g.
   `tools::get_consensus::{sequences_to_matrix, build_consensus}`, `tools::collapse::{collapse_sequences,
-  build_collapsed_output}`). `mod.rs` re-exports each tool module. Note `extract_seq_from_gb.rs` was renamed to
-  `gb_extract.rs`.
+  build_collapsed_output}`, `tools::filter_by_kmer::filter_by_kmer`). `mod.rs` re-exports each tool module.
+  Note `extract_seq_from_gb.rs` was renamed to `gb_extract.rs`.
+- `src/tools/filter_by_kmer.rs` — `FilterByKmer` subcommand: filters sequences by whether they start and/or
+  end with any k-mer from a user-provided allow-list (e.g. start/stop codons), matching IUPAC ambiguity codes
+  in either the k-mer or the sequence against the bases they can represent (`bases_compatible`, reusing
+  `codon_tables::AMBIGUOUS_NT_LOOKUP`). Mirrors `filter_by_length`'s kept/rejected/report-CSV output shape.
 - `src/utils/` — shared helpers used across tools, notably `fasta_utils.rs` (FASTA I/O helpers, `FastaRecords`
   type), `translate.rs` (codon translation logic and `TranslationOptions`, which `cli::TranslateCliOptions`
   converts into), and `codon_tables.rs`.

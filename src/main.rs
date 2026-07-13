@@ -62,6 +62,7 @@ fn main() -> Result<()> {
             rejected_seq_output,
             threshold,
             tolerance,
+            exclude_gaps
         } => {
             tools::filter_by_length::run(
                 &input_file,
@@ -69,7 +70,35 @@ fn main() -> Result<()> {
                 report_file.as_ref(),
                 rejected_seq_output.as_ref(),
                 (&threshold, &tolerance).into(),
+                exclude_gaps,
             )?;
+        }
+        Commands::FilterByKmer {
+            input_file,
+            output_file,
+            report_file,
+            rejected_seq_output,
+            kmer_filter,
+        } => {
+            let start_kmers = kmer_filter.start_kmers_bytes();
+            let end_kmers = kmer_filter.end_kmers_bytes();
+            tools::filter_by_kmer::run(
+                &input_file,
+                &output_file,
+                report_file.as_ref(),
+                rejected_seq_output.as_ref(),
+                start_kmers.as_deref(),
+                end_kmers.as_deref(),
+            )?;
+        }
+        Commands::FilterByName {
+            input_file,
+            output_file,
+            pattern,
+            rejected_seq_output,
+            exclude
+        } => {
+            tools::filter_by_name::run(&input_file, &output_file, rejected_seq_output.as_ref(), pattern, exclude)?;
         }
         Commands::GbExtract {
             input_file,
@@ -116,6 +145,14 @@ fn main() -> Result<()> {
             min_gap_pct,
         } => {
             tools::strip_gap_cols::run(&input_file, &output_file, min_gap_pct)?;
+        }
+        Commands::GetMindistSeq {
+            input_msa,
+            output_file,
+            ambiguity_mode,
+            compute_mode
+        } => {
+            tools::get_mindist_seq::run(&input_msa, &output_file, ambiguity_mode, compute_mode)?;
         }
     }
 
