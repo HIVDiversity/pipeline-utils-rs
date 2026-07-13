@@ -1,6 +1,7 @@
 use crate::tools;
 use crate::tools::get_consensus::AmbiguityMode;
 use crate::utils::fasta_utils::FastaRecords;
+use crate::tools::get_mindist_seq::{ComputeMode};
 use crate::utils::translate::TranslationOptions;
 
 fn to_pyerr(e: anyhow::Error) -> pyo3::PyErr {
@@ -35,6 +36,36 @@ pub mod purs {
     use super::*;
     use pyo3::prelude::*;
     use std::collections::HashMap;
+
+    #[pyfunction]
+    fn get_representative_seq(seqs: HashMap<String, String>, ambiguity_mode_str: String, compute_mode_str: String) -> PyResult<String> {
+        let msa: FastaRecords = dict_to_records(seqs);
+        let ambiguity_mode = match ambiguity_mode_str.as_str() {
+            "IUPAC" => AmbiguityMode::UseIUPAC,
+            "First" => AmbiguityMode::First,
+            "Random" => AmbiguityMode::Random,
+            "MarkN" => AmbiguityMode::MarkN,
+            other => {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "Unknown ambiguity mode: {other:?}. Expected one of \"IUPAC\", \"First\", \"Random\", \"MarkN\"."
+                )));
+            }
+        };
+
+        let compute_mode = match compute_mode_str.as_str() {
+            "Exact" => ComputeMode::Exact,
+            "Heuristic" => ComputeMode::Heuristic,
+            other => {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "Unknown compute mode: {other:?}. Expected one of \"Exact\" or  \"Heuristic\"."
+                )));
+            }
+        };
+
+        let repr_seq = tools::get_mindist_seq::get_most_representative_sequence(&msa, ambiguity_mode, compute_mode).map_err(to_pyerr)?;
+
+        Ok(repr_seq)
+    }
 
     #[pyfunction]
     fn get_consensus(seqs: Vec<String>, ambiguity_mode: String) -> PyResult<String> {
