@@ -1,7 +1,7 @@
 [package]
 name = "pipeline-utils-rs"
 description = "A (quasi-random) collection of tools to manipulate biological files (primarily FASTA/MSA files)."
-version = "4.4.0"
+version = "4.5.0"
 edition = "2024"
 rust-version = "1.93.0"
 repository = "https://github.com/HIVDiversity/pipeline-utils-rs"
