@@ -1,5 +1,6 @@
 use crate::tools::filter_by_length::{LengthRange, LengthThreshold, Tolerance};
 use crate::tools::get_consensus::AmbiguityMode;
+use crate::tools::get_mindist_seq::ComputeMode;
 use crate::utils::translate::TranslationOptions;
 use clap::builder::styling;
 use clap::{Args, Parser, Subcommand};
